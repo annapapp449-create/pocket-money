@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>小猪钱罐</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="小猪钱罐">
+<meta name="theme-color" content="#FFE8EC">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+:root{--bg:#FFF6EE;--pink:#FF8FA8;--pink2:#FFC2D1;--pinkd:#E8607F;--mint:#5CC9A7;--mintl:#D9F5EA;--coral:#FF7B6B;--ink:#5A3E46;--soft:#A98990;--card:#fff;--sun:#FFD36E}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Noto Sans SC",system-ui,sans-serif;overscroll-behavior:none}
+input,select,textarea{-webkit-user-select:text;user-select:text;font:inherit}
+body{background:radial-gradient(circle at 15% 10%,#FFE3EA 0,transparent 35%),radial-gradient(circle at 90% 85%,#E3F6EE 0,transparent 35%),var(--bg)}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;padding:calc(env(safe-area-inset-top) + 20px) 24px calc(env(safe-area-inset-bottom) + 20px)}
+.screen.on{display:flex}
+button{font:inherit;border:0;cursor:pointer;color:inherit}
+/* 首页 */
+#home{align-items:center;justify-content:space-between}
+.hello{font-size:30px;font-weight:700;color:var(--soft);margin-top:4vh;letter-spacing:2px}
+.pig{font-size:min(16vh,150px);line-height:1;margin-top:1vh;filter:drop-shadow(0 8px 0 rgba(232,96,127,.12));animation:bob 3s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-8px) rotate(-2deg)}}
+.balwrap{text-align:center;padding:10px 30px 18px;border-radius:44px;background:#fff;box-shadow:0 10px 0 #FFD9E1,0 20px 40px rgba(232,96,127,.15);min-width:70%;transition:transform .2s}
+.balwrap.pressing{transform:scale(.97)}
+.ballabel{font-size:28px;color:var(--soft);font-weight:700;margin-top:10px}
+.bal{font-size:min(22vh,190px);font-weight:900;line-height:1.05;color:var(--pinkd);font-variant-numeric:tabular-nums;letter-spacing:-2px}
+.bal small{font-size:.38em;margin-right:6px;color:var(--pink);letter-spacing:0}
+.bal.neg{color:var(--coral)}
+.mic{width:min(30vh,260px);height:min(30vh,260px);border-radius:50%;background:radial-gradient(circle at 35% 30%,#FFB3C4,var(--pink) 60%,var(--pinkd));box-shadow:0 12px 0 #D9506F,0 24px 50px rgba(232,96,127,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;touch-action:none;transition:transform .12s,box-shadow .12s}
+.mic .ic{font-size:min(10vh,90px);line-height:1}
+.mic .tx{font-size:32px;font-weight:800;margin-top:8px;letter-spacing:3px}
+.mic.rec{transform:translateY(8px) scale(1.04);box-shadow:0 4px 0 #D9506F,0 0 0 18px rgba(255,143,168,.25),0 0 0 40px rgba(255,143,168,.12)}
+.bottom{display:flex;gap:20px;width:100%;justify-content:center}
+.pill{display:flex;align-items:center;gap:10px;padding:16px 28px;border-radius:999px;background:#fff;font-size:26px;font-weight:700;box-shadow:0 6px 0 #F1DCD3}
+.pill:active{transform:translateY(4px);box-shadow:0 2px 0 #F1DCD3}
+.pill .e{font-size:38px}
+/* 浮层 */
+.mask{position:fixed;inset:0;background:rgba(90,62,70,.35);display:none;align-items:center;justify-content:center;z-index:20;padding:24px}
+.mask.on{display:flex}
+.card{background:#fff;border-radius:40px;padding:36px;width:min(640px,100%);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.18);animation:pop .25s ease-out;max-height:92vh;overflow:auto}
+@keyframes pop{from{transform:scale(.85);opacity:0}}
+.card h2{margin:0 0 10px;font-size:34px}
+.big-emoji{font-size:110px;line-height:1.1}
+.c-item{font-size:44px;font-weight:800;margin:8px 0}
+.c-amt{font-size:90px;font-weight:900;margin:4px 0 10px}
+.c-amt.out{color:var(--coral)}.c-amt.in{color:var(--mint)}
+.heard{font-size:22px;color:var(--soft);margin-bottom:22px}
+.row2{display:flex;gap:18px}
+.bbtn{flex:1;font-size:34px;font-weight:800;padding:26px 10px;border-radius:30px;color:#fff}
+.ok{background:var(--mint);box-shadow:0 8px 0 #3FA586}.no{background:#FFB199;box-shadow:0 8px 0 #E58D73}.gray{background:#EFE6E2;color:var(--ink);box-shadow:0 8px 0 #D8CCC6}
+.bbtn:active{transform:translateY(6px);box-shadow:none}
+.listen .wave{font-size:90px;animation:pulse 1s infinite}
+@keyframes pulse{50%{transform:scale(1.15)}}
+.listen .live{font-size:34px;min-height:50px;margin-top:10px;font-weight:700}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 24px);transform:translate(-50%,-150%);background:#fff;padding:20px 34px;border-radius:999px;font-size:28px;font-weight:800;box-shadow:0 10px 30px rgba(0,0,0,.15);z-index:50;transition:transform .35s cubic-bezier(.2,1.4,.5,1);white-space:nowrap}
+.toast.on{transform:translate(-50%,0)}
+/* 账本 */
+.topbar{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.back{font-size:30px;padding:12px 22px;border-radius:999px;background:#fff;font-weight:800;box-shadow:0 5px 0 #F1DCD3}
+.topbar h1{flex:1;margin:0;font-size:36px;text-align:center}
+.seg{display:flex;background:#fff;border-radius:999px;padding:6px;box-shadow:0 5px 0 #F1DCD3}
+.seg button{font-size:26px;font-weight:800;padding:12px 26px;border-radius:999px;background:transparent;color:var(--soft)}
+.seg button.on{background:var(--pink);color:#fff}
+.sum{display:flex;gap:14px;margin-bottom:14px}
+.sum div{flex:1;background:#fff;border-radius:26px;padding:14px 18px;font-size:22px;color:var(--soft);font-weight:700}
+.sum b{display:block;font-size:40px;color:var(--ink)}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:30px}
+.group{margin:14px 0 6px}
+.ghead{display:flex;justify-content:space-between;align-items:baseline;padding:6px 10px;font-size:24px;font-weight:800}
+.ghead span{font-size:20px;color:var(--soft);font-weight:700}
+.gcard{background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 6px 0 #F5E4DC}
+.ent{position:relative;overflow:hidden;border-top:2px solid #FBF0EA}
+.ent:first-child{border-top:0}
+.ent .in{display:flex;align-items:center;gap:16px;padding:16px 20px;background:#fff;transition:transform .2s;position:relative;z-index:1}
+.ent .em{font-size:44px;width:64px;height:64px;border-radius:20px;background:#FFF1F4;display:flex;align-items:center;justify-content:center}
+.ent .nm{flex:1;font-size:28px;font-weight:700}
+.ent .nm small{display:block;font-size:19px;color:var(--soft);font-weight:600}
+.ent .am{font-size:32px;font-weight:900;font-variant-numeric:tabular-nums}
+.am.out{color:var(--coral)}.am.in{color:var(--mint)}
+.ent .del{position:absolute;right:0;top:0;bottom:0;width:130px;background:var(--coral);color:#fff;font-size:26px;font-weight:800}
+.empty{text-align:center;color:var(--soft);font-size:28px;margin-top:12vh}
+.empty .e{font-size:100px}
+/* 按键 */
+.kp-type{display:flex;gap:14px;margin-bottom:16px}
+.kp-type button{flex:1;font-size:28px;font-weight:800;padding:16px;border-radius:24px;background:#F6EEEA;color:var(--soft)}
+.kp-type button.on.out{background:#FFE2DD;color:var(--coral)}.kp-type button.on.in{background:var(--mintl);color:#2F9D7C}
+.chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:14px}
+.chip{font-size:24px;padding:10px 16px;border-radius:999px;background:#F6EEEA;font-weight:700}
+.chip.on{background:var(--pink);color:#fff}
+.kp-disp{font-size:70px;font-weight:900;margin:6px 0 12px;font-variant-numeric:tabular-nums}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.keys button{font-size:44px;font-weight:800;padding:16px 0;border-radius:24px;background:#FFF1F4;box-shadow:0 5px 0 #F7D3DC}
+.keys button:active{transform:translateY(4px);box-shadow:none}
+/* 家长 */
+#parent .scroll section{background:#fff;border-radius:28px;padding:22px 24px;margin-bottom:16px;box-shadow:0 6px 0 #F5E4DC}
+#parent h3{margin:0 0 12px;font-size:26px}
+#parent label{font-size:22px;color:var(--soft);font-weight:700;display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap}
+#parent input,#parent select,#parent textarea{font-size:24px;padding:12px 14px;border-radius:16px;border:2px solid #F1DCD3;background:#FFFBF8;color:var(--ink)}
+#parent input[type=number]{width:160px}
+#parent textarea{width:100%;height:120px;font-size:16px}
+.pbtn{font-size:22px;font-weight:800;padding:12px 22px;border-radius:16px;background:var(--pink);color:#fff;margin:4px 6px 4px 0}
+.pbtn.alt{background:#EFE6E2;color:var(--ink)}.pbtn.red{background:var(--coral)}
+.note{font-size:18px;color:var(--soft)}
+.plist .pr{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #F5E9E3;font-size:20px}
+.plist .pr .t{flex:1}
+.plist .pr button{font-size:18px;padding:8px 14px;border-radius:12px;background:#F6EEEA}
+.switch{width:70px;height:40px;border-radius:999px;background:#E6DAD4;position:relative;transition:.2s}
+.switch::after{content:"";position:absolute;left:4px;top:4px;width:32px;height:32px;border-radius:50%;background:#fff;transition:.2s}
+.switch.on{background:var(--mint)}.switch.on::after{left:34px}
+.pin-dots{display:flex;gap:18px;justify-content:center;margin:16px 0}
+.pin-dots i{width:28px;height:28px;border-radius:50%;border:3px solid var(--pink);display:block}
+.pin-dots i.f{background:var(--pink)}
+.shake{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-12px)}75%{transform:translateX(12px)}}
+.confetti{position:fixed;top:-40px;font-size:40px;z-index:60;pointer-events:none;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
+</style>
+</head>
+<body>
+
+<!-- 首页 -->
+<div class="screen on" id="home">
+  <div class="hello" id="hello">我的小猪钱罐</div>
+  <div class="balwrap" id="balwrap">
+    <div class="ballabel">我还有</div>
+    <div class="bal" id="bal"><small>¥</small>0</div>
+  </div>
+  <button class="mic" id="mic" aria-label="按住说话"><span class="ic">🎤</span><span class="tx" id="mictx">按住说话</span></button>
+  <div class="bottom">
+    <button class="pill" id="toLedger"><span class="e">👛</span>小钱包</button>
+    <button class="pill" id="toKeypad"><span class="e">🔢</span>按键记账</button>
+  </div>
+</div>
+
+<!-- 账本 -->
+<div class="screen" id="ledger">
+  <div class="topbar">
+    <button class="back" data-go="home">‹ 回去</button>
+    <h1>👛 我的账本</h1>
+    <div class="seg"><button class="on" data-mode="day">按天</button><button data-mode="week">按周</button></div>
+  </div>
+  <div class="sum"><div>还有<b id="sBal"></b></div><div>一共花了<b id="sOut" style="color:var(--coral)"></b></div><div>一共收到<b id="sIn" style="color:var(--mint)"></b></div></div>
+  <div class="scroll" id="list"></div>
+</div>
+
+<!-- 家长 -->
+<div class="screen" id="parent">
+  <div class="topbar"><button class="back" data-go="home">‹ 退出</button><h1>👨‍👩‍👧 家长设置</h1><div style="width:120px"></div></div>
+  <div class="scroll">
+    <section><h3>💰 余额</h3>
+      <div class="note">现在余额：<b id="pBal"></b>（起始金额 <span id="pStart"></span>）</div>
+      <label>把余额设为 ¥<input type="number" id="setBal" step="0.1" inputmode="decimal"><button class="pbtn" id="doSetBal">设定</button></label>
+      <div class="note">会自动调整“起始金额”，已有账目不变。</div>
+    </section>
+    <section><h3>🎁 发零花钱</h3>
+      <label>金额 ¥<input type="number" id="giveAmt" step="0.1" inputmode="decimal"> 备注 <input id="giveNote" value="零花钱" style="width:200px"><button class="pbtn" id="doGive">发给她</button></label>
+    </section>
+    <section><h3>📅 每周定时零花钱</h3>
+      <label>开启 <span class="switch" id="alOn"></span></label>
+      <label>每周 <select id="alDay"><option value="1">周一</option><option value="2">周二</option><option value="3">周三</option><option value="4">周四</option><option value="5">周五</option><option value="6">周六</option><option value="0">周日</option></select>
+        时间 <input type="time" id="alTime" value="08:00"> 金额 ¥<input type="number" id="alAmt" step="0.1" inputmode="decimal"></label>
+      <button class="pbtn" id="alSave">保存</button>
+      <div class="note" id="alInfo"></div>
+      <div class="note">App 不在后台运行：到时间后，下次打开 App 时自动入账；几周没打开会按每个发放日逐笔补上，不会重复。</div>
+    </section>
+    <section><h3>📒 账目（点“改”或“删”）</h3><div class="plist" id="plist"></div></section>
+    <section><h3>💾 备份</h3>
+      <button class="pbtn" id="exp">导出备份</button><button class="pbtn alt" id="impFileBtn">从文件导入</button><input type="file" id="impFile" accept=".json,application/json" style="display:none">
+      <textarea id="bk" placeholder="导出的数据会显示在这里；也可以把备份内容粘贴进来再点“从文本导入”"></textarea>
+      <button class="pbtn alt" id="impText">从文本导入</button>
+      <div class="note">数据只保存在这台 iPad 的浏览器里。删除 App 或清除 Safari 数据会丢失，建议定期导出。</div>
+    </section>
+    <section><h3>🔒 修改家长密码</h3>
+      <label>新密码（4 位数字）<input id="newPin" inputmode="numeric" maxlength="4" style="width:120px"><button class="pbtn" id="doPin">保存</button></label>
+    </section>
+  </div>
+</div>
+
+<!-- 听写中 -->
+<div class="mask" id="mListen"><div class="card listen"><div class="wave">👂</div><h2>我在听…</h2><div class="live" id="live">说说你买了什么、花了多少钱</div><div class="note" style="margin-top:12px;font-size:22px;color:var(--soft)">说完松开手指</div></div></div>
+
+<!-- 确认 -->
+<div class="mask" id="mConfirm"><div class="card">
+  <div class="big-emoji" id="cEmoji"></div>
+  <div class="c-item" id="cItem"></div>
+  <div class="c-amt" id="cAmt"></div>
+  <div class="heard" id="cHeard"></div>
+  <div class="row2"><button class="bbtn no" id="cNo">✗ 重说</button><button class="bbtn ok" id="cOk">✓ 记上</button></div>
+</div></div>
+
+<!-- 没听懂 -->
+<div class="mask" id="mFail"><div class="card">
+  <div class="big-emoji">🐷❓</div><h2 id="fTitle">小猪没听懂呢</h2>
+  <div class="heard" id="fHeard"></div>
+  <div class="heard">可以这样说：<b>“我买了冰淇淋，花了5块钱”</b></div>
+  <div class="row2"><button class="bbtn gray" id="fKey">🔢 用按键</button><button class="bbtn ok" id="fRetry">🎤 再说一次</button></div>
+</div></div>
+
+<!-- 按键记账 -->
+<div class="mask" id="mKeypad"><div class="card">
+  <div class="kp-type"><button class="out on" data-t="out">🛍️ 花钱</button><button class="in" data-t="in">🎁 收到钱</button></div>
+  <div class="chips" id="chips"></div>
+  <div class="kp-disp" id="kpDisp">¥0</div>
+  <div class="keys" id="keys"></div>
+  <div class="row2"><button class="bbtn gray" id="kpCancel">取消</button><button class="bbtn ok" id="kpOk">✓ 记上</button></div>
+</div></div>
+
+<!-- 删除确认 / 通用确认 -->
+<div class="mask" id="mAsk"><div class="card"><div class="big-emoji" id="aEmoji">🗑️</div><h2 id="aText">要删掉这一笔吗？</h2><div class="heard" id="aSub"></div>
+  <div class="row2"><button class="bbtn gray" id="aNo">不删</button><button class="bbtn no" id="aYes">删掉</button></div></div></div>
+
+<!-- 家长密码 -->
+<div class="mask" id="mPin"><div class="card"><h2>👨‍👩‍👧 家长密码</h2><div class="pin-dots" id="pinDots"><i></i><i></i><i></i><i></i></div>
+  <div class="note" id="pinHint" style="color:var(--soft);font-size:20px;margin-bottom:10px"></div>
+  <div class="keys" id="pinKeys"></div><button class="bbtn gray" id="pinCancel" style="width:100%">取消</button></div></div>
+
+<!-- 编辑账目 -->
+<div class="mask" id="mEdit"><div class="card" style="text-align:left"><h2>改一笔账</h2>
+  <div id="parentForm" style="font-size:22px">
+  <p>类型 <select id="eType"><option value="out">花钱</option><option value="in">收到钱</option></select></p>
+  <p>内容 <input id="eItem"></p><p>金额 ¥<input id="eAmt" type="number" step="0.1"></p><p>日期 <input id="eDate" type="datetime-local"></p></div>
+  <div class="row2"><button class="bbtn gray" id="eNo">取消</button><button class="bbtn ok" id="eOk">保存</button></div></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="logic.js"></script>
+<script>
+(function(){
+var KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
+var data=load();
+function load(){try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.entries)return fix(d)}catch(e){}return fix({})}
+function fix(d){d.startCents=d.startCents||0;d.entries=d.entries||[];d.pin=d.pin||'0000';d.allowance=d.allowance||{enabled:false,cents:1000,weekday:0,time:'08:00',lastPayoutTs:null};return d}
+function save(){localStorage.setItem(KEY,JSON.stringify(data))}
+function totals(){var i=0,o=0;data.entries.forEach(function(e){e.type==='in'?i+=e.cents:o+=e.cents});return{inc:i,out:o,bal:data.startCents+i-o}}
+function fmt(c){var n=Math.abs(c)/100,s=(c%100===0)?String(n):(c%10===0?n.toFixed(1):n.toFixed(2));return(c<0?'-':'')+s}
+var WD=['周日','周一','周二','周三','周四','周五','周六'];
+function pad(n){return(n<10?'0':'')+n}
+function dayKey(ts){var d=new Date(ts);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function dayLabel(ts){var d=new Date(ts),t=new Date(),y=new Date(Date.now()-864e5);if(dayKey(ts)===dayKey(t))return'今天';if(dayKey(ts)===dayKey(y))return'昨天';return(d.getMonth()+1)+'月'+d.getDate()+'日 '+WD[d.getDay()]}
+function weekStart(ts){var d=new Date(ts);d=new Date(d.getFullYear(),d.getMonth(),d.getDate());var w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return d}
+function md(d){return(d.getMonth()+1)+'月'+d.getDate()+'日'}
+function hm(ts){var d=new Date(ts);return pad(d.getHours())+':'+pad(d.getMinutes())}
+
+/* ---- 首页 ---- */
+function render(){var t=totals();$('bal').innerHTML='<small>¥</small>'+fmt(t.bal);$('bal').className='bal'+(t.bal<0?' neg':'');
+  var h=new Date().getHours();$('hello').textContent=(h<11?'早上好呀':h<14?'中午好呀':h<18?'下午好呀':'晚上好呀')+' 🌷';}
+function show(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.toggle('on',s.id===id)});if(id==='ledger')renderLedger();if(id==='parent')renderParent();if(id==='home')render()}
+document.querySelectorAll('[data-go]').forEach(function(b){b.onclick=function(){show(b.dataset.go)}});
+$('toLedger').onclick=function(){show('ledger')};
+function open(id){$(id).classList.add('on')}function close(id){$(id).classList.remove('on')}
+var toastT;function toast(msg,ms){var t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('on')},ms||2600)}
+function confetti(set){for(var i=0;i<24;i++){var s=document.createElement('div');s.className='confetti';s.textContent=set[i%set.length];s.style.left=Math.random()*100+'vw';s.style.animationDuration=(1.8+Math.random()*1.6)+'s';s.style.animationDelay=Math.random()*.5+'s';document.body.appendChild(s);setTimeout(function(x){x.remove()}.bind(null,s),4200)}}
+function say(txt){try{var u=new SpeechSynthesisUtterance(txt);u.lang='zh-CN';u.rate=1;speechSynthesis.speak(u)}catch(e){}}
+
+function addEntry(e){e.id=e.id||Date.now().toString(36)+Math.random().toString(36).slice(2,6);e.ts=e.ts||Date.now();data.entries.push(e);save();render()}
+
+/* ---- 语音 ---- */
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition, rec=null, finals='', interim='', holding=false, gotEnd=true;
+var mic=$('mic');
+function startRec(){
+  if(!SR){toast('这台设备不能语音，用按键记吧 🔢');openKeypad();return}
+  $('fTitle').textContent='小猪没听懂呢';finals='';interim='';holding=true;gotEnd=false;mic.classList.add('rec');$('mictx').textContent='松开结束';$('live').textContent='说说你买了什么、花了多少钱';open('mListen');
+  try{rec=new SR();rec.lang='zh-CN';rec.interimResults=true;rec.continuous=true;rec.maxAlternatives=1;
+    rec.onresult=function(ev){interim='';for(var i=ev.resultIndex;i<ev.results.length;i++){var r=ev.results[i];if(r.isFinal)finals+=r[0].transcript;else interim+=r[0].transcript}$('live').textContent=(finals+interim)||'…'};
+    var started=false;rec.onstart=rec.onaudiostart=function(){started=true};
+    setTimeout(function(){if(holding&&!started){finish(true);voiceUnavailable()}},4000);
+    rec.onerror=function(ev){if(ev.error==='not-allowed'||ev.error==='service-not-allowed'||ev.error==='audio-capture'){finish(true);voiceUnavailable(ev.error)}else if(ev.error==='network'){finish(true);$('fTitle').textContent='没连上网，语音用不了';showFail('');}};
+    rec.onend=function(){gotEnd=true;if(holding){try{rec.start()}catch(e){}}else finish()};
+    rec.start();
+  }catch(e){finish(true);openKeypad()}
+}
+function stopRec(){if(!holding)return;holding=false;mic.classList.remove('rec');$('mictx').textContent='按住说话';try{rec&&rec.stop()}catch(e){}
+  setTimeout(function(){if(!gotEnd)finish()},1800)}
+var finished=false;
+function finish(silent){if(finished&&!holding)return;finished=true;setTimeout(function(){finished=false},300);holding=false;mic.classList.remove('rec');$('mictx').textContent='按住说话';close('mListen');
+  if(silent)return;var text=(finals+interim).trim();rec=null;
+  if(!text){showFail('');return}var r=PM.parseSpeech(text);if(!r){showFail(text);return}showConfirm(r)}
+mic.addEventListener('pointerdown',function(e){e.preventDefault();try{mic.setPointerCapture(e.pointerId)}catch(x){}startRec()});
+['pointerup','pointercancel','lostpointercapture'].forEach(function(n){mic.addEventListener(n,function(){stopRec()})});
+mic.addEventListener('contextmenu',function(e){e.preventDefault()});
+
+var pending=null;
+function showConfirm(r){pending=r;$('cEmoji').textContent=r.emoji;$('cItem').textContent=r.item;$('cAmt').textContent=(r.type==='in'?'+ ¥':'- ¥')+fmt(r.cents);$('cAmt').className='c-amt '+r.type;$('cHeard').textContent=r.text?'我听到：“'+r.text+'”':'';open('mConfirm')}
+$('cOk').onclick=function(){if(!pending)return;var p=pending;pending=null;addEntry({type:p.type,item:p.item,cents:p.cents,emoji:p.emoji,said:p.text});close('mConfirm');
+  if(p.type==='in'){toast('🎉 太棒了！收到 ¥'+fmt(p.cents));confetti(['💰','🪙','⭐','🎉']);say('记好啦，收到'+fmt(p.cents)+'元')}
+  else{toast('✓ 记好啦！还有 ¥'+fmt(totals().bal));say('记好啦，还有'+fmt(totals().bal)+'元')}};
+$('cNo').onclick=function(){pending=null;close('mConfirm');toast('好的，按住小话筒再说一次吧 🎤')};
+function voiceUnavailable(err){var sa=navigator.standalone||matchMedia('(display-mode: standalone)').matches;
+  $('fTitle').textContent='语音暂时用不了';$('fHeard').textContent=sa?'请家长检查：iPad 设置里打开 Siri 与听写、允许麦克风；如果从主屏幕图标打开一直不行，可改用 Safari 打开这个网址。':'请家长允许麦克风和语音识别（设置 → Safari → 麦克风；并打开 Siri 与听写）。';
+  $('mFail').querySelectorAll('.heard')[1].style.display='none';open('mFail')}
+function showFail(text){$('mFail').querySelectorAll('.heard')[1].style.display='';$('fHeard').textContent=text?'我听到：“'+text+'”，但没找到多少钱':'好像没有听到声音，靠近一点再说吧';open('mFail')}
+$('fRetry').onclick=function(){close('mFail');$('fTitle').textContent='小猪没听懂呢';toast('按住粉色话筒说话哦 🎤')};
+$('fKey').onclick=function(){close('mFail');openKeypad()};
+
+/* ---- 按键记账 ---- */
+var CH={out:[['🍦','零食'],['🍬','糖果'],['🧸','玩具'],['📚','文具'],['⭐','贴纸'],['🧃','饮料'],['🛍️','其他']],in:[['💝','长辈给的'],['🏅','奖励'],['🧧','红包'],['💰','零花钱']]};
+var kp={t:'out',item:null,emoji:null,s:''};
+function openKeypad(){kp={t:'out',item:'零食',emoji:'🍦',s:''};drawKp();open('mKeypad')}
+function drawKp(){document.querySelectorAll('.kp-type button').forEach(function(b){b.classList.toggle('on',b.dataset.t===kp.t)});
+  $('chips').innerHTML=CH[kp.t].map(function(c){return'<button class="chip'+(kp.item===c[1]?' on':'')+'" data-i="'+c[1]+'" data-e="'+c[0]+'">'+c[0]+' '+c[1]+'</button>'}).join('');
+  $('chips').querySelectorAll('.chip').forEach(function(b){b.onclick=function(){kp.item=b.dataset.i;kp.emoji=b.dataset.e;drawKp()}});
+  $('kpDisp').textContent=(kp.t==='in'?'+ ¥':'- ¥')+(kp.s||'0');$('kpDisp').style.color=kp.t==='in'?'var(--mint)':'var(--coral)'}
+document.querySelectorAll('.kp-type button').forEach(function(b){b.onclick=function(){kp.t=b.dataset.t;kp.item=CH[kp.t][0][1];kp.emoji=CH[kp.t][0][0];drawKp()}});
+$('keys').innerHTML=['1','2','3','4','5','6','7','8','9','.','0','⌫'].map(function(k){return'<button data-k="'+k+'">'+k+'</button>'}).join('');
+$('keys').querySelectorAll('button').forEach(function(b){b.onclick=function(){var k=b.dataset.k;if(k==='⌫')kp.s=kp.s.slice(0,-1);else if(k==='.'){if(kp.s.indexOf('.')<0)kp.s=(kp.s||'0')+'.'}else{if(/\.\d\d$/.test(kp.s)||kp.s.replace('.','').length>=6)return;kp.s=(kp.s==='0'?'':kp.s)+k}drawKp()}});
+$('toKeypad').onclick=openKeypad;$('kpCancel').onclick=function(){close('mKeypad')};
+$('kpOk').onclick=function(){var c=Math.round(parseFloat(kp.s||'0')*100);if(!(c>0)){$('kpDisp').classList.add('shake');setTimeout(function(){$('kpDisp').classList.remove('shake')},400);return}close('mKeypad');showConfirm({type:kp.t,item:kp.item,emoji:kp.emoji,cents:c,text:''})};
+
+/* ---- 账本 ---- */
+var mode='day';
+document.querySelectorAll('.seg button').forEach(function(b){b.onclick=function(){mode=b.dataset.mode;document.querySelectorAll('.seg button').forEach(function(x){x.classList.toggle('on',x===b)});renderLedger()}});
+function entHTML(e,showDate){return'<div class="ent" data-id="'+e.id+'"><div class="in"><div class="em">'+(e.emoji||PM.guessEmoji(e.item))+'</div><div class="nm">'+esc(e.item)+'<small>'+(showDate?(new Date(e.ts).getMonth()+1)+'月'+new Date(e.ts).getDate()+'日 '+WD[new Date(e.ts).getDay()]+' ':'')+hm(e.ts)+'</small></div><div class="am '+e.type+'">'+(e.type==='in'?'+':'-')+fmt(e.cents)+'</div></div><button class="del">删除</button></div>'}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function renderLedger(){var t=totals();$('sBal').textContent='¥'+fmt(t.bal);$('sOut').textContent='¥'+fmt(t.out);$('sIn').textContent='¥'+fmt(t.inc);
+  var es=data.entries.slice().sort(function(a,b){return b.ts-a.ts}),html='';
+  if(!es.length){$('list').innerHTML='<div class="empty"><div class="e">🐷</div>还没有记账哦<br>回去按住话筒说一说吧</div>';return}
+  var groups=[],map={};
+  es.forEach(function(e){var k=mode==='day'?dayKey(e.ts):dayKey(weekStart(e.ts).getTime());if(!map[k]){map[k]={k:k,ts:e.ts,items:[],o:0,i:0};groups.push(map[k])}var g=map[k];g.items.push(e);e.type==='in'?g.i+=e.cents:g.o+=e.cents});
+  groups.forEach(function(g){var title;if(mode==='day')title=dayLabel(g.ts);else{var ws=weekStart(g.ts),we=new Date(ws);we.setDate(we.getDate()+6);title=(dayKey(ws.getTime())===dayKey(weekStart(Date.now()).getTime())?'这周 · ':'')+md(ws)+' – '+md(we)}
+    var sub=[];if(g.o)sub.push('花了 ¥'+fmt(g.o));if(g.i)sub.push('收到 ¥'+fmt(g.i));
+    html+='<div class="group"><div class="ghead">'+title+'<span>'+sub.join(' · ')+'</span></div><div class="gcard">'+g.items.map(function(e){return entHTML(e,mode==='week')}).join('')+'</div></div>'});
+  $('list').innerHTML=html;bindRows()}
+function bindRows(){$('list').querySelectorAll('.ent').forEach(function(row){var inner=row.querySelector('.in'),x0=null,y0=0,dx=0,lp=null,opened=false;
+  inner.addEventListener('touchstart',function(e){x0=e.touches[0].clientX;y0=e.touches[0].clientY;dx=0;lp=setTimeout(function(){lp=null;x0=null;askDelete(row.dataset.id)},700)},{passive:true});
+  inner.addEventListener('touchmove',function(e){if(x0==null)return;dx=e.touches[0].clientX-x0;if(Math.abs(dx)>8||Math.abs(e.touches[0].clientY-y0)>8){clearTimeout(lp);lp=null}if(dx<0)inner.style.transform='translateX('+Math.max(dx,-130)+'px)'},{passive:true});
+  inner.addEventListener('touchend',function(){clearTimeout(lp);if(x0==null)return;x0=null;opened=dx<-60;inner.style.transform=opened?'translateX(-130px)':''});
+  inner.addEventListener('contextmenu',function(e){e.preventDefault();askDelete(row.dataset.id)});
+  row.querySelector('.del').onclick=function(){askDelete(row.dataset.id)}})}
+var askCb=null;
+function askDelete(id){var e=data.entries.find(function(x){return x.id===id});if(!e)return;$('aEmoji').textContent=e.emoji||'🗑️';$('aText').textContent='要删掉这一笔吗？';$('aSub').textContent=e.item+'  '+(e.type==='in'?'+':'-')+'¥'+fmt(e.cents);
+  askCb=function(){data.entries=data.entries.filter(function(x){return x.id!==id});save();render();renderLedger();if($('parent').classList.contains('on'))renderParent();toast('删掉啦')};open('mAsk')}
+$('aNo').onclick=function(){close('mAsk');askCb=null;renderLedger()};$('aYes').onclick=function(){close('mAsk');askCb&&askCb();askCb=null};
+
+/* ---- 家长入口：长按余额 2 秒 ---- */
+var bw=$('balwrap'),lpT=null;
+bw.addEventListener('pointerdown',function(){bw.classList.add('pressing');lpT=setTimeout(function(){lpT=null;bw.classList.remove('pressing');openPin()},2000)});
+['pointerup','pointerleave','pointercancel'].forEach(function(n){bw.addEventListener(n,function(){bw.classList.remove('pressing');clearTimeout(lpT)})});
+bw.addEventListener('contextmenu',function(e){e.preventDefault()});
+var pinS='';
+function openPin(){pinS='';drawPin();$('pinHint').textContent=data.pin==='0000'?'初始密码 0000，进去后可以修改':'';open('mPin')}
+function drawPin(){$('pinDots').querySelectorAll('i').forEach(function(d,i){d.classList.toggle('f',i<pinS.length)})}
+$('pinKeys').innerHTML=['1','2','3','4','5','6','7','8','9','','0','⌫'].map(function(k){return'<button data-k="'+k+'"'+(k?'':' style="visibility:hidden"')+'>'+k+'</button>'}).join('');
+$('pinKeys').querySelectorAll('button').forEach(function(b){b.onclick=function(){var k=b.dataset.k;if(k==='⌫'){pinS=pinS.slice(0,-1);drawPin();return}if(!k||pinS.length>=4)return;pinS+=k;drawPin();
+  if(pinS.length===4)setTimeout(function(){if(pinS===data.pin){close('mPin');show('parent')}else{$('pinDots').classList.add('shake');setTimeout(function(){$('pinDots').classList.remove('shake');pinS='';drawPin()},400)}},150)}});
+$('pinCancel').onclick=function(){close('mPin')};
+
+function cents(v){var n=parseFloat(v);return isNaN(n)?NaN:Math.round(n*100)}
+function renderParent(){var t=totals();$('pBal').textContent='¥'+fmt(t.bal);$('pStart').textContent='¥'+fmt(data.startCents);
+  var a=data.allowance;$('alOn').classList.toggle('on',!!a.enabled);$('alDay').value=String(a.weekday);$('alTime').value=a.time||'08:00';$('alAmt').value=a.cents?a.cents/100:'';
+  $('alInfo').textContent=a.enabled?('已开启：每'+WD[a.weekday]+' '+a.time+' 发 ¥'+fmt(a.cents)+'。下一次：'+nextPay()):'未开启';
+  var es=data.entries.slice().sort(function(x,y){return y.ts-x.ts});
+  $('plist').innerHTML=es.length?es.map(function(e){return'<div class="pr" data-id="'+e.id+'"><span>'+(e.emoji||'')+'</span><span class="t">'+dayKey(e.ts)+' '+hm(e.ts)+' · '+esc(e.item)+(e.auto?'（自动）':'')+'</span><b class="am '+e.type+'">'+(e.type==='in'?'+':'-')+fmt(e.cents)+'</b><button data-a="e">改</button><button data-a="d">删</button></div>'}).join(''):'<div class="note">还没有账目</div>';
+  $('plist').querySelectorAll('.pr').forEach(function(r){r.querySelector('[data-a=e]').onclick=function(){openEdit(r.dataset.id)};r.querySelector('[data-a=d]').onclick=function(){askDelete(r.dataset.id)}})}
+function nextPay(){var a=data.allowance,now=new Date(),d=new Date(now.getFullYear(),now.getMonth(),now.getDate());for(var i=0;i<8;i++){var p=a.time.split(':'),o=new Date(d.getFullYear(),d.getMonth(),d.getDate()+i,+p[0],+p[1]);if(o.getDay()===+a.weekday&&o>now)return md(o)+' '+WD[o.getDay()]+' '+a.time}return''}
+$('doSetBal').onclick=function(){var c=cents($('setBal').value);if(isNaN(c))return;var t=totals();data.startCents+=c-t.bal;save();render();renderParent();$('setBal').value='';toast('余额已设为 ¥'+fmt(c))};
+$('doGive').onclick=function(){var c=cents($('giveAmt').value);if(!(c>0))return;addEntry({type:'in',item:$('giveNote').value||'零花钱',cents:c,emoji:'💰'});$('giveAmt').value='';renderParent();toast('已发 ¥'+fmt(c)+' 🎉')};
+$('alOn').onclick=function(){$('alOn').classList.toggle('on')};
+$('alSave').onclick=function(){var a=data.allowance,on=$('alOn').classList.contains('on'),wd=+$('alDay').value,tm=$('alTime').value||'08:00',c=cents($('alAmt').value);
+  if(on&&!(c>0)){toast('请填写金额');return}
+  var schedChanged=!a.enabled&&on||a.weekday!==wd||a.time!==tm;
+  a.enabled=on;a.weekday=wd;a.time=tm;if(c>0)a.cents=c;
+  if(on&&(schedChanged||a.lastPayoutTs==null))a.lastPayoutTs=Math.max(a.lastPayoutTs||0,Date.now()); // 从现在开始计，不补发开启前的
+  save();renderParent();toast(on?'每周零花钱已开启 ✓':'每周零花钱已关闭')};
+var editId=null;
+function openEdit(id){var e=data.entries.find(function(x){return x.id===id});if(!e)return;editId=id;$('eType').value=e.type;$('eItem').value=e.item;$('eAmt').value=e.cents/100;var d=new Date(e.ts);$('eDate').value=dayKey(e.ts)+'T'+hm(e.ts);open('mEdit')}
+$('eNo').onclick=function(){close('mEdit')};
+$('eOk').onclick=function(){var e=data.entries.find(function(x){return x.id===editId});var c=cents($('eAmt').value);if(!e||!(c>0))return;e.type=$('eType').value;e.item=$('eItem').value||e.item;e.cents=c;e.emoji=PM.guessEmoji(e.item)==='🛍️'?(e.emoji||'🛍️'):PM.guessEmoji(e.item);var ts=new Date($('eDate').value).getTime();if(!isNaN(ts))e.ts=ts;save();close('mEdit');render();renderParent();toast('已保存')};
+$('exp').onclick=function(){var json=JSON.stringify(data,null,1);$('bk').value=json;var name='零花钱备份-'+dayKey(Date.now())+'.json';
+  try{var f=new File([json],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:name}).catch(function(){});return}}catch(e){}
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast('已导出，也可以复制下面的文本')};
+function doImport(txt){try{var d=JSON.parse(txt);if(!d||!Array.isArray(d.entries))throw 0;askCb=function(){data=fix(d);save();render();renderParent();toast('导入成功 ✓')};$('aEmoji').textContent='📥';$('aText').textContent='用备份覆盖现在的数据？';$('aSub').textContent='备份里有 '+d.entries.length+' 笔账';open('mAsk')}catch(e){toast('备份内容不对哦')}}
+$('impFileBtn').onclick=function(){$('impFile').click()};
+$('impFile').onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){doImport(r.result)};r.readAsText(f);this.value=''};
+$('impText').onclick=function(){doImport($('bk').value)};
+$('doPin').onclick=function(){var p=$('newPin').value;if(!/^\d{4}$/.test(p)){toast('请输入 4 位数字');return}data.pin=p;save();$('newPin').value='';toast('密码已修改')};
+
+/* ---- 每周零花钱补发 ---- */
+function checkAllowance(){var added=PM.applyAllowance(data,Date.now());if(added.length){save();render();if($('ledger').classList.contains('on'))renderLedger();
+  var sum=added.reduce(function(s,e){return s+e.cents},0);
+  setTimeout(function(){toast(added.length>1?'🎉 补上了 '+added.length+' 周的零花钱 +¥'+fmt(sum):'🎉 每周零花钱到啦！+¥'+fmt(sum),4000);confetti(['💰','🪙','⭐','🎉','🌸']);say('零花钱到啦')},600)}}
+document.addEventListener('visibilitychange',function(){if(!document.hidden){checkAllowance();render()}});
+setInterval(checkAllowance,60000);
+
+render();checkAllowance();
+if('serviceWorker'in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(function(){});
+window.__pm={data:function(){return data},show:show,showConfirm:showConfirm,openPin:openPin,toast:toast};
+})();
+</script>
+</body>
+</html>
