@@ -118,6 +118,24 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 .pin-dots i.f{background:var(--pink)}
 .shake{animation:shake .4s}
 @keyframes shake{25%{transform:translateX(-12px)}75%{transform:translateX(12px)}}
+/* 存钱目标 */
+.goal{margin:6px auto 2px;max-width:520px;text-align:left}
+.goal .gt{display:flex;justify-content:space-between;align-items:baseline;font-size:24px;font-weight:800;color:var(--ink);gap:12px}
+.goal .gt span{color:var(--soft);font-size:20px;white-space:nowrap}
+.goal .bar{height:22px;border-radius:999px;background:#FBEDEF;margin-top:8px;overflow:hidden;box-shadow:inset 0 2px 0 rgba(232,96,127,.12)}
+.goal .bar i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--pink2),var(--pink));transition:width .8s cubic-bezier(.3,1.3,.5,1)}
+.goal.done .gt{color:#2F9D7C}
+.goal.done .bar i{background:linear-gradient(90deg,#9BE3C9,var(--mint))}
+.goal.done .gt b{display:inline-block;animation:yay 1.2s ease-in-out infinite}
+@keyframes yay{0%,100%{transform:scale(1) rotate(0)}25%{transform:scale(1.12) rotate(-4deg)}50%{transform:scale(1.12) rotate(4deg)}}
+/* 家长小锁 */
+.lock{position:absolute;right:calc(env(safe-area-inset-right) + 18px);top:calc(env(safe-area-inset-top) + 16px);width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.55);font-size:26px;opacity:.55;display:flex;align-items:center;justify-content:center}
+.lock:active{opacity:1;transform:scale(.92)}
+.ent .in{cursor:pointer}
+#mEdit select,#mEdit input{font-size:24px;padding:10px 14px;border-radius:16px;border:2px solid #F1DCD3;background:#FFFBF8;color:var(--ink);margin-left:8px}
+#mEdit p{margin:12px 0}
+.edel{width:100%;margin-top:18px;font-size:24px;font-weight:800;padding:14px;border-radius:22px;background:#FFF1EE;color:var(--coral)}
+.ver{text-align:center;font-size:16px;color:#CDB9BE;margin:6px 0 20px}
 .confetti{position:fixed;top:-40px;font-size:40px;z-index:60;pointer-events:none;animation:fall linear forwards}
 @keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
 </style>
@@ -126,10 +144,12 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 
 <!-- 首页 -->
 <div class="screen on" id="home">
+  <button class="lock" id="lockBtn" aria-label="家长设置">🔒</button>
   <div class="hello" id="hello">我的小猪钱罐</div>
   <div class="balwrap" id="balwrap">
     <div class="ballabel">我还有</div>
     <div class="bal" id="bal"><small>¥</small>0</div>
+    <div class="goal" id="goal" style="display:none"><div class="gt"><b id="goalTxt"></b><span id="goalSub"></span></div><div class="bar"><i id="goalBar"></i></div></div>
   </div>
   <button class="mic" id="mic" aria-label="按住说话"><span class="ic">🎤</span><span class="tx" id="mictx">按住说话</span></button>
   <div class="bottom">
@@ -161,6 +181,12 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
     <section><h3>🎁 发零花钱</h3>
       <label>金额 ¥<input type="number" id="giveAmt" step="0.1" inputmode="decimal"> 备注 <input id="giveNote" value="零花钱" style="width:200px"><button class="pbtn" id="doGive">发给她</button></label>
     </section>
+    <section><h3>🎯 存钱目标</h3>
+      <div class="note" id="gInfo"></div>
+      <label>想买 <input id="gItem" placeholder="比如 乐高" maxlength="10" style="width:200px"> 价格 ¥<input type="number" id="gAmt" step="0.1" inputmode="decimal"> 图标 <input id="gEmoji" placeholder="🧸" maxlength="4" style="width:80px"></label>
+      <button class="pbtn" id="gSave">保存目标</button><button class="pbtn alt" id="gClear">清除目标</button>
+      <div class="note">首页余额下面会显示进度条；钱够了会显示“可以买啦！”。图标不填会自动选。</div>
+    </section>
     <section><h3>📅 每周定时零花钱</h3>
       <label>开启 <span class="switch" id="alOn"></span></label>
       <label>每周 <select id="alDay"><option value="1">周一</option><option value="2">周二</option><option value="3">周三</option><option value="4">周四</option><option value="5">周五</option><option value="6">周六</option><option value="0">周日</option></select>
@@ -178,7 +204,9 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
     </section>
     <section><h3>🔒 修改家长密码</h3>
       <label>新密码（4 位数字）<input id="newPin" inputmode="numeric" maxlength="4" style="width:120px"><button class="pbtn" id="doPin">保存</button></label>
+      <div class="note">首页右上角的小锁 🔒，或按住余额 2 秒，都能进入家长设置。输对密码后 5 分钟内，在小钱包里点某一笔可以直接改，不用再输密码。</div>
     </section>
+    <div class="ver" id="ver"></div>
   </div>
 </div>
 
@@ -225,17 +253,18 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
   <div id="parentForm" style="font-size:22px">
   <p>类型 <select id="eType"><option value="out">花钱</option><option value="in">收到钱</option></select></p>
   <p>内容 <input id="eItem"></p><p>金额 ¥<input id="eAmt" type="number" step="0.1"></p><p>日期 <input id="eDate" type="datetime-local"></p></div>
-  <div class="row2"><button class="bbtn gray" id="eNo">取消</button><button class="bbtn ok" id="eOk">保存</button></div></div></div>
+  <div class="row2"><button class="bbtn gray" id="eNo">取消</button><button class="bbtn ok" id="eOk">保存</button></div>
+  <button class="edel" id="eDel">🗑️ 删掉这一笔</button></div></div>
 
 <div class="toast" id="toast"></div>
 
 <script src="logic.js"></script>
 <script>
 (function(){
-var KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
+var APPV='v2', KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
 var data=load();
 function load(){try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.entries)return fix(d)}catch(e){}return fix({})}
-function fix(d){d.startCents=d.startCents||0;d.entries=d.entries||[];d.pin=d.pin||'0000';d.allowance=d.allowance||{enabled:false,cents:1000,weekday:0,time:'08:00',lastPayoutTs:null};return d}
+function fix(d){d.startCents=d.startCents||0;d.entries=d.entries||[];d.pin=d.pin||'0000';d.allowance=d.allowance||{enabled:false,cents:1000,weekday:0,time:'08:00',lastPayoutTs:null};if(d.goal===undefined)d.goal=null;return d}
 function save(){localStorage.setItem(KEY,JSON.stringify(data))}
 function totals(){var i=0,o=0;data.entries.forEach(function(e){e.type==='in'?i+=e.cents:o+=e.cents});return{inc:i,out:o,bal:data.startCents+i-o}}
 function fmt(c){var n=Math.abs(c)/100,s=(c%100===0)?String(n):(c%10===0?n.toFixed(1):n.toFixed(2));return(c<0?'-':'')+s}
@@ -249,7 +278,15 @@ function hm(ts){var d=new Date(ts);return pad(d.getHours())+':'+pad(d.getMinutes
 
 /* ---- 首页 ---- */
 function render(){var t=totals();$('bal').innerHTML='<small>¥</small>'+fmt(t.bal);$('bal').className='bal'+(t.bal<0?' neg':'');
-  var h=new Date().getHours();$('hello').textContent=(h<11?'早上好呀':h<14?'中午好呀':h<18?'下午好呀':'晚上好呀')+' 🌷';}
+  var h=new Date().getHours();$('hello').textContent=(h<11?'早上好呀':h<14?'中午好呀':h<18?'下午好呀':'晚上好呀')+' 🌷';
+  renderGoal(t.bal);}
+function renderGoal(bal){var g=data.goal,gp=PM.goalProgress(bal,g),el=$('goal');if(!gp){el.style.display='none';return}
+  el.style.display='';el.classList.toggle('done',gp.reached);var nm=(g.emoji||'🎯')+' '+esc(g.item);
+  if(gp.reached){$('goalTxt').innerHTML=nm+' 可以买啦！🎉';$('goalSub').textContent='¥'+fmt(g.cents)}
+  else{$('goalTxt').innerHTML='🎯 '+esc(g.item)+' 还差 ¥'+fmt(gp.remain);$('goalSub').textContent=gp.pct+'%'}
+  $('goalBar').style.width=gp.pct+'%';
+  if(gp.reached&&!g.cel){g.cel=true;save();setTimeout(function(){if($('home').classList.contains('on')){confetti(['🎯','⭐','🎉','💖',g.emoji||'🎁']);toast('🎉 钱够啦！可以买'+g.item+'啦！',3500)}},700)}
+  else if(!gp.reached&&g.cel){g.cel=false;save()}}
 function show(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.toggle('on',s.id===id)});if(id==='ledger')renderLedger();if(id==='parent')renderParent();if(id==='home')render()}
 document.querySelectorAll('[data-go]').forEach(function(b){b.onclick=function(){show(b.dataset.go)}});
 $('toLedger').onclick=function(){show('ledger')};
@@ -326,11 +363,12 @@ function renderLedger(){var t=totals();$('sBal').textContent='¥'+fmt(t.bal);$('
     var sub=[];if(g.o)sub.push('花了 ¥'+fmt(g.o));if(g.i)sub.push('收到 ¥'+fmt(g.i));
     html+='<div class="group"><div class="ghead">'+title+'<span>'+sub.join(' · ')+'</span></div><div class="gcard">'+g.items.map(function(e){return entHTML(e,mode==='week')}).join('')+'</div></div>'});
   $('list').innerHTML=html;bindRows()}
-function bindRows(){$('list').querySelectorAll('.ent').forEach(function(row){var inner=row.querySelector('.in'),x0=null,y0=0,dx=0,lp=null,opened=false;
-  inner.addEventListener('touchstart',function(e){x0=e.touches[0].clientX;y0=e.touches[0].clientY;dx=0;lp=setTimeout(function(){lp=null;x0=null;askDelete(row.dataset.id)},700)},{passive:true});
-  inner.addEventListener('touchmove',function(e){if(x0==null)return;dx=e.touches[0].clientX-x0;if(Math.abs(dx)>8||Math.abs(e.touches[0].clientY-y0)>8){clearTimeout(lp);lp=null}if(dx<0)inner.style.transform='translateX('+Math.max(dx,-130)+'px)'},{passive:true});
+function bindRows(){$('list').querySelectorAll('.ent').forEach(function(row){var inner=row.querySelector('.in'),x0=null,y0=0,dx=0,lp=null,opened=false,moved=false,lpFired=false,wasOpen=false;
+  inner.addEventListener('touchstart',function(e){x0=e.touches[0].clientX;y0=e.touches[0].clientY;dx=0;moved=false;lpFired=false;wasOpen=opened;lp=setTimeout(function(){lp=null;x0=null;lpFired=true;askDelete(row.dataset.id)},700)},{passive:true});
+  inner.addEventListener('touchmove',function(e){if(x0==null)return;dx=e.touches[0].clientX-x0;if(Math.abs(dx)>8||Math.abs(e.touches[0].clientY-y0)>8){clearTimeout(lp);lp=null;moved=true}if(dx<0)inner.style.transform='translateX('+Math.max(dx,-130)+'px)'},{passive:true});
   inner.addEventListener('touchend',function(){clearTimeout(lp);if(x0==null)return;x0=null;opened=dx<-60;inner.style.transform=opened?'translateX(-130px)':''});
   inner.addEventListener('contextmenu',function(e){e.preventDefault();askDelete(row.dataset.id)});
+  inner.addEventListener('click',function(){if(moved||lpFired||wasOpen){moved=false;lpFired=false;wasOpen=false;return}if(opened){opened=false;inner.style.transform='';return}var id=row.dataset.id;needParent(function(){openEdit(id)})});
   row.querySelector('.del').onclick=function(){askDelete(row.dataset.id)}})}
 var askCb=null;
 function askDelete(id){var e=data.entries.find(function(x){return x.id===id});if(!e)return;$('aEmoji').textContent=e.emoji||'🗑️';$('aText').textContent='要删掉这一笔吗？';$('aSub').textContent=e.item+'  '+(e.type==='in'?'+':'-')+'¥'+fmt(e.cents);
@@ -339,27 +377,37 @@ $('aNo').onclick=function(){close('mAsk');askCb=null;renderLedger()};$('aYes').o
 
 /* ---- 家长入口：长按余额 2 秒 ---- */
 var bw=$('balwrap'),lpT=null;
-bw.addEventListener('pointerdown',function(){bw.classList.add('pressing');lpT=setTimeout(function(){lpT=null;bw.classList.remove('pressing');openPin()},2000)});
+bw.addEventListener('pointerdown',function(){bw.classList.add('pressing');lpT=setTimeout(function(){lpT=null;bw.classList.remove('pressing');needParent(goParent)},2000)});
 ['pointerup','pointerleave','pointercancel'].forEach(function(n){bw.addEventListener(n,function(){bw.classList.remove('pressing');clearTimeout(lpT)})});
 bw.addEventListener('contextmenu',function(e){e.preventDefault()});
-var pinS='';
-function openPin(){pinS='';drawPin();$('pinHint').textContent=data.pin==='0000'?'初始密码 0000，进去后可以修改':'';open('mPin')}
+var pinS='',pinCb=null,unlockedAt=0;
+function unlocked(){return PM.isUnlocked(unlockedAt,Date.now())}
+function needParent(cb){if(unlocked()){unlockedAt=Date.now();cb();return}openPin(cb)}
+function goParent(){show('parent')}
+$('lockBtn').onclick=function(){needParent(goParent)};
+function openPin(cb){pinCb=typeof cb==='function'?cb:goParent;pinS='';drawPin();$('pinHint').textContent=data.pin==='0000'?'初始密码 0000，进去后可以修改':'';open('mPin')}
 function drawPin(){$('pinDots').querySelectorAll('i').forEach(function(d,i){d.classList.toggle('f',i<pinS.length)})}
 $('pinKeys').innerHTML=['1','2','3','4','5','6','7','8','9','','0','⌫'].map(function(k){return'<button data-k="'+k+'"'+(k?'':' style="visibility:hidden"')+'>'+k+'</button>'}).join('');
 $('pinKeys').querySelectorAll('button').forEach(function(b){b.onclick=function(){var k=b.dataset.k;if(k==='⌫'){pinS=pinS.slice(0,-1);drawPin();return}if(!k||pinS.length>=4)return;pinS+=k;drawPin();
-  if(pinS.length===4)setTimeout(function(){if(pinS===data.pin){close('mPin');show('parent')}else{$('pinDots').classList.add('shake');setTimeout(function(){$('pinDots').classList.remove('shake');pinS='';drawPin()},400)}},150)}});
-$('pinCancel').onclick=function(){close('mPin')};
+  if(pinS.length===4)setTimeout(function(){if(pinS===data.pin){close('mPin');unlockedAt=Date.now();var f=pinCb;pinCb=null;f&&f()}else{$('pinDots').classList.add('shake');setTimeout(function(){$('pinDots').classList.remove('shake');pinS='';drawPin()},400)}},150)}});
+$('pinCancel').onclick=function(){close('mPin');pinCb=null};
 
 function cents(v){var n=parseFloat(v);return isNaN(n)?NaN:Math.round(n*100)}
 function renderParent(){var t=totals();$('pBal').textContent='¥'+fmt(t.bal);$('pStart').textContent='¥'+fmt(data.startCents);
   var a=data.allowance;$('alOn').classList.toggle('on',!!a.enabled);$('alDay').value=String(a.weekday);$('alTime').value=a.time||'08:00';$('alAmt').value=a.cents?a.cents/100:'';
   $('alInfo').textContent=a.enabled?('已开启：每'+WD[a.weekday]+' '+a.time+' 发 ¥'+fmt(a.cents)+'。下一次：'+nextPay()):'未开启';
+  var g=data.goal,gp=PM.goalProgress(t.bal,g);$('gInfo').textContent=gp?('现在的目标：'+(g.emoji||'🎯')+' '+g.item+' ¥'+fmt(g.cents)+(gp.reached?'，钱已经够啦':'，还差 ¥'+fmt(gp.remain))):'还没有设置目标';
+  if(g){$('gItem').value=g.item;$('gAmt').value=g.cents/100;$('gEmoji').value=g.emoji||''}else{$('gItem').value='';$('gAmt').value='';$('gEmoji').value=''}
+  $('ver').textContent='小猪钱罐 '+APPV;
   var es=data.entries.slice().sort(function(x,y){return y.ts-x.ts});
   $('plist').innerHTML=es.length?es.map(function(e){return'<div class="pr" data-id="'+e.id+'"><span>'+(e.emoji||'')+'</span><span class="t">'+dayKey(e.ts)+' '+hm(e.ts)+' · '+esc(e.item)+(e.auto?'（自动）':'')+'</span><b class="am '+e.type+'">'+(e.type==='in'?'+':'-')+fmt(e.cents)+'</b><button data-a="e">改</button><button data-a="d">删</button></div>'}).join(''):'<div class="note">还没有账目</div>';
   $('plist').querySelectorAll('.pr').forEach(function(r){r.querySelector('[data-a=e]').onclick=function(){openEdit(r.dataset.id)};r.querySelector('[data-a=d]').onclick=function(){askDelete(r.dataset.id)}})}
 function nextPay(){var a=data.allowance,now=new Date(),d=new Date(now.getFullYear(),now.getMonth(),now.getDate());for(var i=0;i<8;i++){var p=a.time.split(':'),o=new Date(d.getFullYear(),d.getMonth(),d.getDate()+i,+p[0],+p[1]);if(o.getDay()===+a.weekday&&o>now)return md(o)+' '+WD[o.getDay()]+' '+a.time}return''}
 $('doSetBal').onclick=function(){var c=cents($('setBal').value);if(isNaN(c))return;var t=totals();data.startCents+=c-t.bal;save();render();renderParent();$('setBal').value='';toast('余额已设为 ¥'+fmt(c))};
 $('doGive').onclick=function(){var c=cents($('giveAmt').value);if(!(c>0))return;addEntry({type:'in',item:$('giveNote').value||'零花钱',cents:c,emoji:'💰'});$('giveAmt').value='';renderParent();toast('已发 ¥'+fmt(c)+' 🎉')};
+$('gSave').onclick=function(){var it=$('gItem').value.trim(),c=cents($('gAmt').value),em=$('gEmoji').value.trim();if(!it){toast('请填写想买的东西');return}if(!(c>0)){toast('请填写价格');return}
+  if(!em){em=PM.guessEmoji(it);if(em==='🛍️')em='🎁'}data.goal={item:it.slice(0,10),cents:c,emoji:em,setTs:Date.now()};var gp=PM.goalProgress(totals().bal,data.goal);data.goal.cel=gp.reached;save();render();renderParent();toast('目标已设好 🎯')};
+$('gClear').onclick=function(){if(!data.goal){toast('还没有目标');return}data.goal=null;save();render();renderParent();toast('目标已清除')};
 $('alOn').onclick=function(){$('alOn').classList.toggle('on')};
 $('alSave').onclick=function(){var a=data.allowance,on=$('alOn').classList.contains('on'),wd=+$('alDay').value,tm=$('alTime').value||'08:00',c=cents($('alAmt').value);
   if(on&&!(c>0)){toast('请填写金额');return}
@@ -370,7 +418,8 @@ $('alSave').onclick=function(){var a=data.allowance,on=$('alOn').classList.conta
 var editId=null;
 function openEdit(id){var e=data.entries.find(function(x){return x.id===id});if(!e)return;editId=id;$('eType').value=e.type;$('eItem').value=e.item;$('eAmt').value=e.cents/100;var d=new Date(e.ts);$('eDate').value=dayKey(e.ts)+'T'+hm(e.ts);open('mEdit')}
 $('eNo').onclick=function(){close('mEdit')};
-$('eOk').onclick=function(){var e=data.entries.find(function(x){return x.id===editId});var c=cents($('eAmt').value);if(!e||!(c>0))return;e.type=$('eType').value;e.item=$('eItem').value||e.item;e.cents=c;e.emoji=PM.guessEmoji(e.item)==='🛍️'?(e.emoji||'🛍️'):PM.guessEmoji(e.item);var ts=new Date($('eDate').value).getTime();if(!isNaN(ts))e.ts=ts;save();close('mEdit');render();renderParent();toast('已保存')};
+$('eOk').onclick=function(){var e=data.entries.find(function(x){return x.id===editId});var c=cents($('eAmt').value);if(!e||!(c>0))return;e.type=$('eType').value;e.item=$('eItem').value||e.item;e.cents=c;e.emoji=PM.guessEmoji(e.item)==='🛍️'?(e.emoji||'🛍️'):PM.guessEmoji(e.item);var ts=new Date($('eDate').value).getTime();if(!isNaN(ts))e.ts=ts;save();close('mEdit');render();if($('parent').classList.contains('on'))renderParent();if($('ledger').classList.contains('on'))renderLedger();toast('已保存')};
+$('eDel').onclick=function(){var id=editId;close('mEdit');askDelete(id)};
 $('exp').onclick=function(){var json=JSON.stringify(data,null,1);$('bk').value=json;var name='零花钱备份-'+dayKey(Date.now())+'.json';
   try{var f=new File([json],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:name}).catch(function(){});return}}catch(e){}
   var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast('已导出，也可以复制下面的文本')};
@@ -388,8 +437,12 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden){che
 setInterval(checkAllowance,60000);
 
 render();checkAllowance();
-if('serviceWorker'in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(function(){});
-window.__pm={data:function(){return data},show:show,showConfirm:showConfirm,openPin:openPin,toast:toast};
+if('serviceWorker'in navigator&&location.protocol!=='file:'){
+  var hadCtl=!!navigator.serviceWorker.controller,reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){if(hadCtl&&!reloaded){reloaded=true;location.reload()}});
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(reg){reg.update().catch(function(){});
+    document.addEventListener('visibilitychange',function(){if(!document.hidden)reg.update().catch(function(){})})}).catch(function(){});}
+window.__pm={data:function(){return data},show:show,showConfirm:showConfirm,openPin:openPin,toast:toast,render:render,version:APPV,unlocked:unlocked,lock:function(){unlockedAt=0}};
 })();
 </script>
 </body>

@@ -164,6 +164,25 @@
     return added;
   }
 
-  var api = { parseSpeech: parseSpeech, toNum: toNum, findAmounts: findAmounts, normalize: normalize, guessEmoji: guessEmoji, duePayouts: duePayouts, applyAllowance: applyAllowance, payoutKey: payoutKey };
+  /* ---------- 存钱目标 ---------- */
+  // goal: {item, cents, emoji} 或 null；返回 null（无目标）或 {pct(0-100), remain(分), reached}
+  function goalProgress(balCents, goal) {
+    if (!goal || !(goal.cents > 0)) return null;
+    var b = Math.max(0, balCents || 0);
+    var pct = Math.min(100, Math.floor(b * 100 / goal.cents));
+    var remain = Math.max(0, goal.cents - b);
+    return { pct: remain === 0 ? 100 : Math.min(pct, 99), remain: remain, reached: remain === 0 };
+  }
+
+  /* ---------- 家长解锁有效期 ---------- */
+  var UNLOCK_MS = 5 * 60 * 1000;
+  function isUnlocked(unlockedAt, nowTs, windowMs) {
+    if (!unlockedAt) return false;
+    var w = windowMs == null ? UNLOCK_MS : windowMs;
+    var age = nowTs - unlockedAt;
+    return age >= 0 && age < w;
+  }
+
+  var api = { goalProgress: goalProgress, isUnlocked: isUnlocked, UNLOCK_MS: UNLOCK_MS, parseSpeech: parseSpeech, toNum: toNum, findAmounts: findAmounts, normalize: normalize, guessEmoji: guessEmoji, duePayouts: duePayouts, applyAllowance: applyAllowance, payoutKey: payoutKey };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PM = api;
 })(this);
