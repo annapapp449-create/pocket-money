@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>小猪钱罐</title>
+<title>一一钱罐</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="小猪钱罐">
+<meta name="apple-mobile-web-app-title" content="一一钱罐">
 <meta name="theme-color" content="#FFE8EC">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=3">
-<link rel="icon" href="icons/icon-192.png?v=3">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=4">
+<link rel="icon" href="icons/icon-192.png?v=4">
 <style>
 :root{--bg:#FFF6EE;--pink:#FF8FA8;--pink2:#FFC2D1;--pinkd:#E8607F;--mint:#5CC9A7;--mintl:#D9F5EA;--coral:#FF7B6B;--ink:#5A3E46;--soft:#A98990;--card:#fff;--sun:#FFD36E}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
@@ -145,7 +145,7 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 <!-- 首页 -->
 <div class="screen on" id="home">
   <button class="lock" id="lockBtn" aria-label="家长设置">🔒</button>
-  <div class="hello" id="hello">我的小猪钱罐</div>
+  <div class="hello" id="hello">我的一一钱罐</div>
   <div class="balwrap" id="balwrap">
     <div class="ballabel">我还有</div>
     <div class="bal" id="bal"><small>¥</small>0</div>
@@ -261,7 +261,7 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 <script src="logic.js"></script>
 <script>
 (function(){
-var APPV='v3', KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
+var APPV='v4', KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
 var data=load();
 function load(){try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.entries)return fix(d)}catch(e){}return fix({})}
 function fix(d){d.startCents=d.startCents||0;d.entries=d.entries||[];d.pin=d.pin||'0000';d.allowance=d.allowance||{enabled:false,cents:1000,weekday:0,time:'08:00',lastPayoutTs:null};if(d.goal===undefined)d.goal=null;return d}
@@ -398,7 +398,7 @@ function renderParent(){var t=totals();$('pBal').textContent='¥'+fmt(t.bal);$('
   $('alInfo').textContent=a.enabled?('已开启：每'+WD[a.weekday]+' '+a.time+' 发 ¥'+fmt(a.cents)+'。下一次：'+nextPay()):'未开启';
   var g=data.goal,gp=PM.goalProgress(t.bal,g);$('gInfo').textContent=gp?('现在的目标：'+(g.emoji||'🎯')+' '+g.item+' ¥'+fmt(g.cents)+(gp.reached?'，钱已经够啦':'，还差 ¥'+fmt(gp.remain))):'还没有设置目标';
   if(g){$('gItem').value=g.item;$('gAmt').value=g.cents/100;$('gEmoji').value=g.emoji||''}else{$('gItem').value='';$('gAmt').value='';$('gEmoji').value=''}
-  $('ver').textContent='小猪钱罐 '+APPV;
+  $('ver').textContent='一一钱罐 '+APPV;
   var es=data.entries.slice().sort(function(x,y){return y.ts-x.ts});
   $('plist').innerHTML=es.length?es.map(function(e){return'<div class="pr" data-id="'+e.id+'"><span>'+(e.emoji||'')+'</span><span class="t">'+dayKey(e.ts)+' '+hm(e.ts)+' · '+esc(e.item)+(e.auto?'（自动）':'')+'</span><b class="am '+e.type+'">'+(e.type==='in'?'+':'-')+fmt(e.cents)+'</b><button data-a="e">改</button><button data-a="d">删</button></div>'}).join(''):'<div class="note">还没有账目</div>';
   $('plist').querySelectorAll('.pr').forEach(function(r){r.querySelector('[data-a=e]').onclick=function(){openEdit(r.dataset.id)};r.querySelector('[data-a=d]').onclick=function(){askDelete(r.dataset.id)}})}
