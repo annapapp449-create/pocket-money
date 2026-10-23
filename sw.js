@@ -1,10 +1,10 @@
-// 一一钱罐 Service Worker（v8：手机适配；逻辑同 v7）：应用外壳“缓存优先”。
+// 一一钱罐 Service Worker（v9：删账要家长密码、保存失败提示、备份合并导入；v8 手机适配）：应用外壳“缓存优先”。
 // 新地址是云开发默认域名：浏览器直接打开页面时可能先出现腾讯的「访问提示中间页」，
 // 其它请求会被加上 Content-Disposition: attachment。所以：
 //  - 安装时把所有文件拉下来，去掉 attachment 头，并确认 index.html 真的是钱罐（不是提示页）才缓存；
 //  - 之后打开页面一律用缓存里的外壳，不再经过提示页；
 //  - 更新：sw.js 有变化时浏览器会装新版本（新缓存装好才替换），页面随后自动刷新。
-var V='pm-v8',SHELL='index.html',MARK='name="pm-app"';
+var V='pm-v9',SHELL='index.html',MARK='name="pm-app"';
 var FILES=['index.html','logic.js','sync.js','vendor/cloudbase.js','manifest.json','icons/apple-touch-icon.png','icons/icon-192.png','icons/icon-512.png','icons/icon-maskable-512.png'];
 function clean(r){var h=new Headers(r.headers);h.delete('content-disposition');
   return r.blob().then(function(b){return new Response(b,{status:200,statusText:'OK',headers:h})})}

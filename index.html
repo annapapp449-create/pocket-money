@@ -256,9 +256,21 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 .kp-disp{font-size:54px;margin:0 0 8px}
 .pin-dots{margin:10px 0}
 }
+/* v9：保存失败 / 数据损坏 提示条（浮在最上面，不改变原排版） */
+.warnbar{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 10px);width:min(720px,calc(100vw - 24px));background:#FFF1F0;border:3px solid var(--coral);border-radius:24px;padding:14px 18px;z-index:15;box-shadow:0 10px 30px rgba(0,0,0,.15);display:none;color:var(--ink)}
+.warnbar.on{display:block}
+.warnbar b{display:block;font-size:24px;font-weight:900;color:#C2413A;margin-bottom:4px}
+.warnbar .wp{font-size:17px;color:var(--soft);line-height:1.45}
+.warnbar .wb{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.warnbar .wb button{font-size:18px;font-weight:800;padding:10px 18px;min-height:44px;border-radius:14px;background:var(--coral);color:#fff}
+.warnbar .wb button.alt{background:#EFE6E2;color:var(--ink)}
+.warnbar.corrupt{border-color:#F3C94B;background:#FFF9E6}.warnbar.corrupt b{color:#7A5A00}
+body:not(.scr-home) #saveWarn{top:auto;bottom:calc(env(safe-area-inset-bottom) + 10px)} /* 账本/家长页顶上有“回去/退出”，提示放到底部 */
+body.scr-home #saveWarn.on ~ #corruptBar{top:auto;bottom:calc(env(safe-area-inset-bottom) + 10px)} /* 两个同时出现时，损坏提示放到底部 */
+@media (max-width:600px){.warnbar b{font-size:19px}.warnbar .wp{font-size:14px}.warnbar{padding:12px 14px;border-radius:20px}}
 </style>
 </head>
-<body>
+<body class="scr-home">
 
 <!-- 首页 -->
 <div class="screen on" id="home">
@@ -394,18 +406,37 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
   <button class="edel" id="eDel">🗑️ 删掉这一笔</button></div></div>
 
 <div class="toast" id="toast"></div>
+<div class="warnbar" id="saveWarn" role="alert"><b>⚠️ 小钱罐没存好！快去找爸爸妈妈</b>
+  <div class="wp">家长：设备存储写入失败（可能空间满了）。账还在屏幕上，但关掉 App 可能会丢。请先别关 App，点「导出备份」保存一份；清理存储空间后点「再存一次」。</div>
+  <div class="wb"><button id="swExport">导出备份</button><button class="alt" id="swRetry">再存一次</button></div></div>
+<div class="warnbar corrupt" id="corruptBar" role="alert"><b>⚠️ 之前的账本没读出来</b>
+  <div class="wp" id="corruptTxt"></div>
+  <div class="wb"><button class="alt" id="cbOk">知道了</button></div></div>
 
 <script src="logic.js"></script>
 <script>
 (function(){
 /* ===== 搬家配置：新地址只改这一处（结尾不要带 /） ===== */
 var NEW_ORIGIN='https://yiyi-d3gyvvdig0f40d02f-1514835546.tcloudbaseapp.com';
-var APPV='v8', KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
+var APPV='v9', KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
+var corrupt=null; // v9：读不出的旧账本 {key: 另存的键名 或 null, raw: 原始文本}
 var data=load();
-function load(){try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.entries)return PM.prepSync(fix(d),true)}catch(e){}return PM.prepSync(fix({}),false)}
+function load(){var raw=null;try{raw=localStorage.getItem(KEY)}catch(e){raw=null}
+  if(raw!=null){var d=null;try{d=JSON.parse(raw)}catch(e){d=null}
+    if(d&&typeof d==='object'&&Array.isArray(d.entries))return PM.prepSync(fix(d),true);
+    // 读不出来：先把原始内容另存一份，绝不直接用空账本覆盖
+    var bk='pm-data-corrupt-'+Date.now();try{localStorage.setItem(bk,raw)}catch(e){bk=null}
+    corrupt={key:bk,raw:raw}}
+  return PM.prepSync(fix({}),false)}
 function fix(d){d.startCents=d.startCents||0;d.entries=d.entries||[];d.pin=d.pin||'0000';d.allowance=d.allowance||{enabled:false,cents:1000,weekday:0,time:'08:00',lastPayoutTs:null};if(d.goal===undefined)d.goal=null;return d}
-function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
-function save(){saveLocal();if(window.__sync)__sync.changed()}
+// v9：保存返回 true/false；失败时显示持续提示，数据留在内存里（云同步仍会上传）
+var saveOK=true;
+function saveLocal(){var ok=false;
+  if(corrupt&&!corrupt.key){var bk='pm-data-corrupt-'+Date.now();try{localStorage.setItem(bk,corrupt.raw);corrupt.key=bk}catch(e){}}
+  if(corrupt&&!corrupt.key)ok=false; // 损坏的原始数据还没能另存：先不覆盖它
+  else try{localStorage.setItem(KEY,JSON.stringify(data));ok=localStorage.getItem(KEY)!=null}catch(e){ok=false}
+  saveOK=ok;var w=document.getElementById('saveWarn');if(w)w.classList.toggle('on',!ok);return ok}
+function save(){var ok=saveLocal();if(window.__sync)__sync.changed();return ok}
 function touch(k){data.meta=data.meta||{};data.meta[k]=Date.now()}
 function totals(){var i=0,o=0;data.entries.forEach(function(e){e.type==='in'?i+=e.cents:o+=e.cents});return{inc:i,out:o,bal:data.startCents+i-o}}
 function fmt(c){var n=Math.abs(c)/100,s=(c%100===0)?String(n):(c%10===0?n.toFixed(1):n.toFixed(2));return(c<0?'-':'')+s}
@@ -428,7 +459,7 @@ function renderGoal(bal){var g=data.goal,gp=PM.goalProgress(bal,g),el=$('goal');
   $('goalBar').style.width=gp.pct+'%';
   if(gp.reached&&!g.cel){g.cel=true;save();setTimeout(function(){if($('home').classList.contains('on')){confetti(['🎯','⭐','🎉','💖',g.emoji||'🎁']);toast('🎉 钱够啦！可以买'+g.item+'啦！',3500)}},700)}
   else if(!gp.reached&&g.cel){g.cel=false;save()}}
-function show(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.toggle('on',s.id===id)});if(id==='ledger')renderLedger();if(id==='parent')renderParent();if(id==='home')render()}
+function show(id){document.body.className=document.body.className.replace(/\bscr-\w+/g,'').trim()+' scr-'+id;document.querySelectorAll('.screen').forEach(function(s){s.classList.toggle('on',s.id===id)});if(id==='ledger')renderLedger();if(id==='parent')renderParent();if(id==='home')render()}
 document.querySelectorAll('[data-go]').forEach(function(b){b.onclick=function(){show(b.dataset.go)}});
 $('toLedger').onclick=function(){show('ledger')};
 function open(id){$(id).classList.add('on')}function close(id){$(id).classList.remove('on')}
@@ -436,7 +467,7 @@ var toastT;function toast(msg,ms){var t=$('toast');t.textContent=msg;t.classList
 function confetti(set){for(var i=0;i<24;i++){var s=document.createElement('div');s.className='confetti';s.textContent=set[i%set.length];s.style.left=Math.random()*100+'vw';s.style.animationDuration=(1.8+Math.random()*1.6)+'s';s.style.animationDelay=Math.random()*.5+'s';document.body.appendChild(s);setTimeout(function(x){x.remove()}.bind(null,s),4200)}}
 function say(txt){try{var u=new SpeechSynthesisUtterance(txt);u.lang='zh-CN';u.rate=1;speechSynthesis.speak(u)}catch(e){}}
 
-function addEntry(e){e.id=e.id||Date.now().toString(36)+Math.random().toString(36).slice(2,6);e.ts=e.ts||Date.now();e.mt=Date.now();data.entries.push(e);save();render()}
+function addEntry(e){e.id=e.id||Date.now().toString(36)+Math.random().toString(36).slice(2,6);e.ts=e.ts||Date.now();e.mt=Date.now();data.entries.push(e);var ok=save();render();return ok}
 
 /* ---- 语音 ---- */
 var SR=window.SpeechRecognition||window.webkitSpeechRecognition, rec=null, finals='', interim='', holding=false, gotEnd=true;
@@ -465,7 +496,8 @@ mic.addEventListener('contextmenu',function(e){e.preventDefault()});
 
 var pending=null;
 function showConfirm(r){pending=r;$('cEmoji').textContent=r.emoji;$('cItem').textContent=r.item;$('cAmt').textContent=(r.type==='in'?'+ ¥':'- ¥')+fmt(r.cents);$('cAmt').className='c-amt '+r.type;$('cHeard').textContent=r.text?'我听到：“'+r.text+'”':'';open('mConfirm')}
-$('cOk').onclick=function(){if(!pending)return;var p=pending;pending=null;addEntry({type:p.type,item:p.item,cents:p.cents,emoji:p.emoji,said:p.text});close('mConfirm');
+$('cOk').onclick=function(){if(!pending)return;var p=pending;pending=null;var ok=addEntry({type:p.type,item:p.item,cents:p.cents,emoji:p.emoji,said:p.text});close('mConfirm');
+  if(!ok){saveFailed();return}
   if(p.type==='in'){toast('🎉 太棒了！收到 ¥'+fmt(p.cents));confetti(['💰','🪙','⭐','🎉']);say('记好啦，收到'+fmt(p.cents)+'元')}
   else{toast('✓ 记好啦！还有 ¥'+fmt(totals().bal));say('记好啦，还有'+fmt(totals().bal)+'元')}};
 $('cNo').onclick=function(){pending=null;close('mConfirm');toast('好的，按住小话筒再说一次吧 🎤')};
@@ -505,15 +537,22 @@ function renderLedger(){var t=totals();$('sBal').textContent='¥'+fmt(t.bal);$('
     html+='<div class="group"><div class="ghead">'+title+'<span>'+sub.join(' · ')+'</span></div><div class="gcard">'+g.items.map(function(e){return entHTML(e,mode==='week')}).join('')+'</div></div>'});
   $('list').innerHTML=html;bindRows()}
 function bindRows(){$('list').querySelectorAll('.ent').forEach(function(row){var inner=row.querySelector('.in'),x0=null,y0=0,dx=0,lp=null,opened=false,moved=false,lpFired=false,wasOpen=false;
-  inner.addEventListener('touchstart',function(e){x0=e.touches[0].clientX;y0=e.touches[0].clientY;dx=0;moved=false;lpFired=false;wasOpen=opened;lp=setTimeout(function(){lp=null;x0=null;lpFired=true;askDelete(row.dataset.id)},700)},{passive:true});
+  inner.addEventListener('touchstart',function(e){x0=e.touches[0].clientX;y0=e.touches[0].clientY;dx=0;moved=false;lpFired=false;wasOpen=opened;lp=setTimeout(function(){lp=null;x0=null;lpFired=true;requestDelete(row.dataset.id)},700)},{passive:true});
   inner.addEventListener('touchmove',function(e){if(x0==null)return;dx=e.touches[0].clientX-x0;if(Math.abs(dx)>8||Math.abs(e.touches[0].clientY-y0)>8){clearTimeout(lp);lp=null;moved=true}if(dx<0)inner.style.transform='translateX('+Math.max(dx,-130)+'px)'},{passive:true});
   inner.addEventListener('touchend',function(){clearTimeout(lp);if(x0==null)return;x0=null;opened=dx<-60;inner.style.transform=opened?'translateX(-130px)':''});
-  inner.addEventListener('contextmenu',function(e){e.preventDefault();askDelete(row.dataset.id)});
+  inner.addEventListener('contextmenu',function(e){e.preventDefault();requestDelete(row.dataset.id)});
   inner.addEventListener('click',function(){if(moved||lpFired||wasOpen){moved=false;lpFired=false;wasOpen=false;return}if(opened){opened=false;inner.style.transform='';return}var id=row.dataset.id;needParent(function(){openEdit(id)})});
-  row.querySelector('.del').onclick=function(){askDelete(row.dataset.id)}})}
+  row.querySelector('.del').onclick=function(){requestDelete(row.dataset.id)}})}
 var askCb=null;
-function askDelete(id){var e=data.entries.find(function(x){return x.id===id});if(!e)return;$('aEmoji').textContent=e.emoji||'🗑️';$('aText').textContent='要删掉这一笔吗？';$('aSub').textContent=e.item+'  '+(e.type==='in'?'+':'-')+'¥'+fmt(e.cents);
-  askCb=function(){var now=Date.now();data.deleted=data.deleted||{};data.deleted[id]=now;if(e.key)data.deleted[e.key]=now;data.entries=data.entries.filter(function(x){return x.id!==id});save();render();renderLedger();if($('parent').classList.contains('on'))renderParent();toast('删掉啦')};open('mAsk')}
+// 通用确认框：每次都设置按钮文字，避免沿用“不删/删掉”
+function ask(o){$('aEmoji').textContent=o.emoji||'🗑️';$('aText').textContent=o.text;$('aSub').textContent=o.sub||'';$('aNo').textContent=o.no||'取消';$('aYes').textContent=o.yes||'好';$('aYes').className='bbtn '+(o.danger?'no':'ok');askCb=o.cb;open('mAsk')}
+// v9：所有删除入口（长按、右键、左滑“删除”、编辑框、家长页“删”）都要家长密码（5 分钟内免输）
+function requestDelete(id){needParent(function(){askDelete(id)})}
+function askDelete(id){var e=data.entries.find(function(x){return x.id===id});if(!e)return;
+  ask({emoji:e.emoji||'🗑️',text:'要删掉这一笔吗？',sub:e.item+'  '+(e.type==='in'?'+':'-')+'¥'+fmt(e.cents),no:'不删',yes:'删掉',danger:true,cb:function(){
+    if(!unlocked()){requestDelete(id);return} // 真正删除时再检查一次权限（确认框开着时可能已过期）
+    doDelete(id)}})}
+function doDelete(id){var e=data.entries.find(function(x){return x.id===id});if(!e)return;var now=Date.now();data.deleted=data.deleted||{};data.deleted[id]=now;if(e.key)data.deleted[e.key]=now;data.entries=data.entries.filter(function(x){return x.id!==id});var ok=save();render();renderLedger();if($('parent').classList.contains('on'))renderParent();if(ok)toast('删掉啦');else saveFailed()}
 $('aNo').onclick=function(){close('mAsk');askCb=null;renderLedger()};$('aYes').onclick=function(){close('mAsk');askCb&&askCb();askCb=null};
 
 /* ---- 家长入口：长按余额 2 秒 ---- */
@@ -531,7 +570,7 @@ function drawPin(){$('pinDots').querySelectorAll('i').forEach(function(d,i){d.cl
 $('pinKeys').innerHTML=['1','2','3','4','5','6','7','8','9','','0','⌫'].map(function(k){return'<button data-k="'+k+'"'+(k?'':' style="visibility:hidden"')+'>'+k+'</button>'}).join('');
 $('pinKeys').querySelectorAll('button').forEach(function(b){b.onclick=function(){var k=b.dataset.k;if(k==='⌫'){pinS=pinS.slice(0,-1);drawPin();return}if(!k||pinS.length>=4)return;pinS+=k;drawPin();
   if(pinS.length===4)setTimeout(function(){if(pinS===data.pin){close('mPin');unlockedAt=Date.now();var f=pinCb;pinCb=null;f&&f()}else{$('pinDots').classList.add('shake');setTimeout(function(){$('pinDots').classList.remove('shake');pinS='';drawPin()},400)}},150)}});
-$('pinCancel').onclick=function(){close('mPin');pinCb=null};
+$('pinCancel').onclick=function(){close('mPin');pinCb=null;if($('ledger').classList.contains('on'))renderLedger()};
 
 function cents(v){var n=parseFloat(v);return isNaN(n)?NaN:Math.round(n*100)}
 function renderParent(){var t=totals();$('pBal').textContent='¥'+fmt(t.bal);$('pStart').textContent='¥'+fmt(data.startCents);
@@ -542,40 +581,39 @@ function renderParent(){var t=totals();$('pBal').textContent='¥'+fmt(t.bal);$('
   $('ver').textContent='一一钱罐 '+APPV;
   var es=data.entries.slice().sort(function(x,y){return y.ts-x.ts});
   $('plist').innerHTML=es.length?es.map(function(e){return'<div class="pr" data-id="'+e.id+'"><span>'+(e.emoji||'')+'</span><span class="t">'+dayKey(e.ts)+' '+hm(e.ts)+' · '+esc(e.item)+(e.auto?'（自动）':'')+'</span><b class="am '+e.type+'">'+(e.type==='in'?'+':'-')+fmt(e.cents)+'</b><button data-a="e">改</button><button data-a="d">删</button></div>'}).join(''):'<div class="note">还没有账目</div>';
-  $('plist').querySelectorAll('.pr').forEach(function(r){r.querySelector('[data-a=e]').onclick=function(){openEdit(r.dataset.id)};r.querySelector('[data-a=d]').onclick=function(){askDelete(r.dataset.id)}})}
+  $('plist').querySelectorAll('.pr').forEach(function(r){r.querySelector('[data-a=e]').onclick=function(){openEdit(r.dataset.id)};r.querySelector('[data-a=d]').onclick=function(){requestDelete(r.dataset.id)}})}
 function nextPay(){var a=data.allowance,now=new Date(),d=new Date(now.getFullYear(),now.getMonth(),now.getDate());for(var i=0;i<8;i++){var p=a.time.split(':'),o=new Date(d.getFullYear(),d.getMonth(),d.getDate()+i,+p[0],+p[1]);if(o.getDay()===+a.weekday&&o>now)return md(o)+' '+WD[o.getDay()]+' '+a.time}return''}
-$('doSetBal').onclick=function(){var c=cents($('setBal').value);if(isNaN(c))return;var t=totals();data.startCents+=c-t.bal;touch('startCents');save();render();renderParent();$('setBal').value='';toast('余额已设为 ¥'+fmt(c))};
-$('doGive').onclick=function(){var c=cents($('giveAmt').value);if(!(c>0))return;addEntry({type:'in',item:$('giveNote').value||'零花钱',cents:c,emoji:'💰'});$('giveAmt').value='';renderParent();toast('已发 ¥'+fmt(c)+' 🎉')};
+$('doSetBal').onclick=function(){var c=cents($('setBal').value);if(isNaN(c))return;var t=totals();data.startCents+=c-t.bal;touch('startCents');var ok=save();render();renderParent();$('setBal').value='';if(ok)toast('余额已设为 ¥'+fmt(c));else saveFailed()};
+$('doGive').onclick=function(){var c=cents($('giveAmt').value);if(!(c>0))return;var ok=addEntry({type:'in',item:$('giveNote').value||'零花钱',cents:c,emoji:'💰'});$('giveAmt').value='';renderParent();if(ok)toast('已发 ¥'+fmt(c)+' 🎉');else saveFailed()};
 $('gSave').onclick=function(){var it=$('gItem').value.trim(),c=cents($('gAmt').value),em=$('gEmoji').value.trim();if(!it){toast('请填写想买的东西');return}if(!(c>0)){toast('请填写价格');return}
-  if(!em){em=PM.guessEmoji(it);if(em==='🛍️')em='🎁'}data.goal={item:it.slice(0,10),cents:c,emoji:em,setTs:Date.now()};var gp=PM.goalProgress(totals().bal,data.goal);data.goal.cel=gp.reached;touch('goal');save();render();renderParent();toast('目标已设好 🎯')};
-$('gClear').onclick=function(){if(!data.goal){toast('还没有目标');return}data.goal=null;touch('goal');save();render();renderParent();toast('目标已清除')};
+  if(!em){em=PM.guessEmoji(it);if(em==='🛍️')em='🎁'}data.goal={item:it.slice(0,10),cents:c,emoji:em,setTs:Date.now()};var gp=PM.goalProgress(totals().bal,data.goal);data.goal.cel=gp.reached;touch('goal');var ok=save();render();renderParent();if(ok)toast('目标已设好 🎯');else saveFailed()};
+$('gClear').onclick=function(){if(!data.goal){toast('还没有目标');return}data.goal=null;touch('goal');var ok=save();render();renderParent();if(ok)toast('目标已清除');else saveFailed()};
 $('alOn').onclick=function(){$('alOn').classList.toggle('on')};
 $('alSave').onclick=function(){var a=data.allowance,on=$('alOn').classList.contains('on'),wd=+$('alDay').value,tm=$('alTime').value||'08:00',c=cents($('alAmt').value);
   if(on&&!(c>0)){toast('请填写金额');return}
   var schedChanged=!a.enabled&&on||a.weekday!==wd||a.time!==tm;
   a.enabled=on;a.weekday=wd;a.time=tm;if(c>0)a.cents=c;
   if(on&&(schedChanged||a.lastPayoutTs==null))a.lastPayoutTs=Math.max(a.lastPayoutTs||0,Date.now()); // 从现在开始计，不补发开启前的
-  touch('allowance');save();renderParent();toast(on?'每周零花钱已开启 ✓':'每周零花钱已关闭')};
+  touch('allowance');var ok=save();renderParent();if(ok)toast(on?'每周零花钱已开启 ✓':'每周零花钱已关闭');else saveFailed()};
 var editId=null;
 function openEdit(id){var e=data.entries.find(function(x){return x.id===id});if(!e)return;editId=id;$('eType').value=e.type;$('eItem').value=e.item;$('eAmt').value=e.cents/100;var d=new Date(e.ts);$('eDate').value=dayKey(e.ts)+'T'+hm(e.ts);open('mEdit')}
 $('eNo').onclick=function(){close('mEdit')};
-$('eOk').onclick=function(){var e=data.entries.find(function(x){return x.id===editId});var c=cents($('eAmt').value);if(!e||!(c>0))return;e.type=$('eType').value;e.item=$('eItem').value||e.item;e.cents=c;e.emoji=PM.guessEmoji(e.item)==='🛍️'?(e.emoji||'🛍️'):PM.guessEmoji(e.item);var ts=new Date($('eDate').value).getTime();if(!isNaN(ts))e.ts=ts;e.mt=Date.now();save();close('mEdit');render();if($('parent').classList.contains('on'))renderParent();if($('ledger').classList.contains('on'))renderLedger();toast('已保存')};
-$('eDel').onclick=function(){var id=editId;close('mEdit');askDelete(id)};
+$('eOk').onclick=function(){var e=data.entries.find(function(x){return x.id===editId});var c=cents($('eAmt').value);if(!e||!(c>0))return;e.type=$('eType').value;e.item=$('eItem').value||e.item;e.cents=c;e.emoji=PM.guessEmoji(e.item)==='🛍️'?(e.emoji||'🛍️'):PM.guessEmoji(e.item);var ts=new Date($('eDate').value).getTime();if(!isNaN(ts))e.ts=ts;e.mt=Date.now();var ok=save();close('mEdit');render();if($('parent').classList.contains('on'))renderParent();if($('ledger').classList.contains('on'))renderLedger();if(ok)toast('已保存');else saveFailed()};
+$('eDel').onclick=function(){var id=editId;close('mEdit');requestDelete(id)};
 $('exp').onclick=function(){var json=JSON.stringify(data,null,1);$('bk').value=json;var name='零花钱备份-'+dayKey(Date.now())+'.json';
   try{var f=new File([json],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:name}).catch(function(){});return}}catch(e){}
   var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast('已导出，也可以复制下面的文本')};
 function doImport(txt){var mv=String(txt||'').trim();if(/import=|^1\.[A-Za-z0-9_-]+$/.test(mv)){var md=PM.decodeMove(mv);if(md){importMerged(md,'导入成功');$('bk').value=''}else toast('搬家数据不完整，请重新复制');return}
-  try{var d=JSON.parse(txt);if(!d||!Array.isArray(d.entries))throw 0;askCb=function(){var now=Date.now(),old=data,nd=PM.prepSync(fix(d),true);nd.deleted=Object.assign({},old.deleted||{},nd.deleted||{});
-    var keep={};nd.entries.forEach(function(e){if(nd.deleted[e.id]||(e.key&&nd.deleted[e.key])){e.id='r'+now.toString(36)+Math.random().toString(36).slice(2,6);delete e.key}e.mt=now;keep[e.id]=1});
-    old.entries.forEach(function(e){if(!keep[e.id]){nd.deleted[e.id]=now;if(e.key&&!nd.entries.some(function(x){return x.key===e.key}))nd.deleted[e.key]=now}});
-    PM.SETTINGS.forEach(function(k){nd.meta[k]=now});data=nd;save();render();renderParent();toast('导入成功 ✓')};$('aEmoji').textContent='📥';$('aText').textContent='用备份覆盖现在的数据？';$('aSub').textContent='备份里有 '+d.entries.length+' 笔账';open('mAsk')}catch(e){toast('备份内容不对哦')}}
+  // v9：备份文件也走“合并”（和搬家同一条路径）：只补上缺少的账，不删除现在的账，旧备份不会删掉其他设备的新账
+  var d=mv.charAt(0)==='{'?PM.decodeMove(mv):null;if(!d){toast('备份内容不对哦');return}
+  ask({emoji:'📥',text:'把备份合并进来？',sub:'备份里有 '+d.entries.length+' 笔账。只会补上现在没有的账，不会删掉或覆盖现在的账。',no:'取消',yes:'合并导入',danger:false,cb:function(){importMerged(d,'导入成功','补上')}})}
 $('impFileBtn').onclick=function(){$('impFile').click()};
 $('impFile').onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){doImport(r.result)};r.readAsText(f);this.value=''};
 $('impText').onclick=function(){doImport($('bk').value)};
-$('doPin').onclick=function(){var p=$('newPin').value;if(!/^\d{4}$/.test(p)){toast('请输入 4 位数字');return}data.pin=p;touch('pin');save();$('newPin').value='';toast('密码已修改')};
+$('doPin').onclick=function(){var p=$('newPin').value;if(!/^\d{4}$/.test(p)){toast('请输入 4 位数字');return}data.pin=p;touch('pin');var ok=save();$('newPin').value='';if(ok)toast('密码已修改');else saveFailed()};
 
 /* ---- 每周零花钱补发 ---- */
-function checkAllowance(){var added=PM.applyAllowance(data,Date.now());if(added.length){save();render();if($('ledger').classList.contains('on'))renderLedger();
+function checkAllowance(){var added=PM.applyAllowance(data,Date.now());if(added.length){var ok=save();render();if($('ledger').classList.contains('on'))renderLedger();if(!ok){saveFailed();return}
   var sum=added.reduce(function(s,e){return s+e.cents},0);
   setTimeout(function(){toast(added.length>1?'🎉 补上了 '+added.length+' 周的零花钱 +¥'+fmt(sum):'🎉 每周零花钱到啦！+¥'+fmt(sum),4000);confetti(['💰','🪙','⭐','🎉','🌸']);say('零花钱到啦')},600)}}
 document.addEventListener('visibilitychange',function(){if(!document.hidden){checkAllowance();render()}});
@@ -586,9 +624,9 @@ var MOVE=/(^|\.)github\.io$/.test(location.hostname)||/[?&]mode=move(&|$)/.test(
 var NEW_OK=!/REPLACE-WITH/.test(NEW_ORIGIN);
 function moveLink(){return NEW_ORIGIN.replace(/\/+$/,'')+'/#import='+PM.encodeMove(data)}
 var pendingImport=null;
-function importMerged(d,how){var n0=data.entries.length;data=fix(PM.importMerge(data,d));save();render();if($('parent').classList.contains('on'))renderParent();if($('ledger').classList.contains('on'))renderLedger();
+function importMerged(d,how,verb){var n0=data.entries.length;data=fix(PM.importMerge(data,d));var ok=save();render();if($('parent').classList.contains('on'))renderParent();if($('ledger').classList.contains('on'))renderLedger();
   try{localStorage.setItem('pm-imported-at',String(Date.now()))}catch(e){}
-  var add=data.entries.length-n0;toast(how+(add>0?'：搬来 '+add+' 笔账 ✓':'：账本已是最新 ✓'),4000);
+  var add=data.entries.length-n0;if(ok)toast(how+(add>0?'：'+(verb||'搬来')+' '+add+' 笔账 ✓':'：账本已是最新 ✓'),4000);else saveFailed();
   if(window.__sync)__sync.syncNow(true);else pendingImport=true; return add}
 function checkHashImport(){var h=location.hash||'';if(h.indexOf('import=')<0)return;
   var d=PM.decodeMove(h);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){location.hash=''}
@@ -604,6 +642,12 @@ if(MOVE){document.body.classList.add('moving');$('moveBar').style.display='flex'
     else{$('mvText').select();try{document.execCommand('copy');ok()}catch(e){toast('请手动全选复制下面的文字')}}};
   if(!NEW_OK){$('mvGo').disabled=true;$('mvCopy').disabled=true}
 }
+/* ---- v9：保存失败 / 账本损坏 提示 ---- */
+function saveFailed(){$('saveWarn').classList.add('on');toast('⚠️ 没存好，请找爸爸妈妈',4000)}
+$('swExport').onclick=function(){needParent(function(){show('parent');$('exp').scrollIntoView({block:'center'});$('exp').click()})};
+$('swRetry').onclick=function(){if(saveLocal())toast('存好啦 ✓');else toast('还是没存好，请先导出备份',4000)};
+if(corrupt){$('corruptTxt').textContent='这台设备里原来的账本数据坏了，读不出来。'+(corrupt.key?'原始内容已原样另存为「'+corrupt.key+'」，没有被覆盖。':'原始内容没能另存（存储满了），所以先不写入，请家长先清理存储空间。')+'开了云同步的话，联网后会自动从云端拿回账；也可以在「家长设置 → 备份」导入以前的备份。';$('corruptBar').classList.add('on')}
+$('cbOk').onclick=function(){$('corruptBar').classList.remove('on')};
 render();checkAllowance();checkHashImport();
 window.addEventListener('hashchange',checkHashImport);
 /* ---- 云同步钩子（sync.js 调用） ---- */
@@ -624,7 +668,7 @@ if('serviceWorker'in navigator&&location.protocol!=='file:'){
     document.addEventListener('visibilitychange',function(){if(!document.hidden)reg.update().catch(function(){})})}).catch(function(){});}
 if(!MOVE){var ss=document.createElement('script');ss.src='sync.js?v=7';ss.onload=function(){if(pendingImport&&window.__sync){pendingImport=null;__sync.syncNow(true)}};document.body.appendChild(ss)}
 else{$('syText').textContent='旧地址不能云同步，请搬到新地址';$('syDot').className='dot s-off'}
-window.__pm={moveLink:moveLink,isMove:MOVE,data:function(){return data},show:show,showConfirm:showConfirm,openPin:openPin,toast:toast,render:render,version:APPV,unlocked:unlocked,lock:function(){unlockedAt=0}};
+window.__pm={saveOK:function(){return saveOK},corrupt:function(){return corrupt},requestDelete:requestDelete,doImport:doImport,moveLink:moveLink,isMove:MOVE,data:function(){return data},show:show,showConfirm:showConfirm,openPin:openPin,toast:toast,render:render,version:APPV,unlocked:unlocked,lock:function(){unlockedAt=0}};
 })();
 </script>
 
