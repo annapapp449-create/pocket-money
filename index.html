@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-title" content="一一钱罐">
 <meta name="theme-color" content="#FFE8EC">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=5">
-<link rel="icon" href="icons/icon-192.png?v=5">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=6">
+<link rel="icon" href="icons/icon-192.png?v=6">
 <style>
 :root{--bg:#FFF6EE;--pink:#FF8FA8;--pink2:#FFC2D1;--pinkd:#E8607F;--mint:#5CC9A7;--mintl:#D9F5EA;--coral:#FF7B6B;--ink:#5A3E46;--soft:#A98990;--card:#fff;--sun:#FFD36E}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
@@ -270,7 +270,7 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 <script src="logic.js"></script>
 <script>
 (function(){
-var APPV='v5', KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
+var APPV='v6', KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
 var data=load();
 function load(){try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.entries)return PM.prepSync(fix(d),true)}catch(e){}return PM.prepSync(fix({}),false)}
 function fix(d){d.startCents=d.startCents||0;d.entries=d.entries||[];d.pin=d.pin||'0000';d.allowance=d.allowance||{enabled:false,cents:1000,weekday:0,time:'08:00',lastPayoutTs:null};if(d.goal===undefined)d.goal=null;return d}
@@ -459,7 +459,7 @@ window.__pmSyncHost={
   status:function(st){var m={ok:['ok','已同步'],busy:['busy','同步中…'],off:['off','离线，稍后自动同步'],err:['err','同步出错'],idle:['off','未连接']}[st.state]||['off',st.state];
     $('syDot').className='dot s-'+m[0];$('syText').textContent=m[1];
     $('syDetail').textContent=(st.reason?st.reason:'')+(st.last?((st.reason?' · ':'')+'上次成功：'+dayKey(st.last)+' '+hm(st.last)):'');
-    $('syEnv').textContent=st.env?('云开发环境：'+st.env+(st.connected?'（已连接'+(st.live?'，实时更新中':'')+'）':'（未连接）')):''}
+    $('syEnv').textContent=st.env?('云开发环境：'+st.env+(st.connected?'（已连接'+(st.live?'，实时更新中':'')+(st.devices?'，'+st.devices+' 台设备':'')+'）':'（未连接）')):''}
 };
 $('syNow').onclick=function(){if(window.__sync)__sync.syncNow(true)};
 if('serviceWorker'in navigator&&location.protocol!=='file:'){
@@ -470,6 +470,6 @@ if('serviceWorker'in navigator&&location.protocol!=='file:'){
 window.__pm={data:function(){return data},show:show,showConfirm:showConfirm,openPin:openPin,toast:toast,render:render,version:APPV,unlocked:unlocked,lock:function(){unlockedAt=0}};
 })();
 </script>
-<script src="sync.js?v=5" defer></script>
+<script src="sync.js?v=6" defer></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-var V='pm-v5',FILES=['./','index.html','logic.js','sync.js','vendor/cloudbase.js','manifest.json','icons/apple-touch-icon.png','icons/icon-192.png','icons/icon-512.png'];
+var V='pm-v6',FILES=['./','index.html','logic.js','sync.js','vendor/cloudbase.js','manifest.json','icons/apple-touch-icon.png','icons/icon-192.png','icons/icon-512.png'];
 self.addEventListener('install',function(e){e.waitUntil(caches.open(V).then(function(c){return c.addAll(FILES.map(function(f){return new Request(f,{cache:'reload'})}))}).then(function(){return self.skipWaiting()}))});
 self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(ks){return Promise.all(ks.filter(function(k){return k!==V}).map(function(k){return caches.delete(k)}))}).then(function(){return self.clients.claim()}))});
 self.addEventListener('fetch',function(e){if(e.request.method!=='GET')return;
