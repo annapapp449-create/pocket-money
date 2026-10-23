@@ -9,9 +9,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="一一钱罐">
 <meta name="theme-color" content="#FFE8EC">
+<meta name="pm-app" content="yiyi">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=6">
-<link rel="icon" href="icons/icon-192.png?v=6">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=7">
+<link rel="icon" href="icons/icon-192.png?v=7">
 <style>
 :root{--bg:#FFF6EE;--pink:#FF8FA8;--pink2:#FFC2D1;--pinkd:#E8607F;--mint:#5CC9A7;--mintl:#D9F5EA;--coral:#FF7B6B;--ink:#5A3E46;--soft:#A98990;--card:#fff;--sun:#FFD36E}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
@@ -107,6 +108,9 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 .pbtn{font-size:22px;font-weight:800;padding:12px 22px;border-radius:16px;background:var(--pink);color:#fff;margin:4px 6px 4px 0}
 .pbtn.alt{background:#EFE6E2;color:var(--ink)}.pbtn.red{background:var(--coral)}
 .note{font-size:18px;color:var(--soft)}
+.movebar{position:absolute;top:calc(env(safe-area-inset-top) + 14px);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;background:#FFF6D6;border:2px solid #F3C94B;border-radius:999px;padding:8px 10px 8px 20px;font-size:20px;font-weight:800;color:#7A5A00;z-index:5;white-space:nowrap}
+.moving #home .hello{margin-top:calc(4vh + 46px)}
+.movebar button{background:#F3C94B;color:#5A4300;border-radius:999px;padding:8px 18px;font-size:20px;font-weight:900}
 .plist .pr{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #F5E9E3;font-size:20px}
 .plist .pr .t{flex:1}
 .plist .pr button{font-size:18px;padding:8px 14px;border-radius:12px;background:#F6EEEA}
@@ -149,6 +153,7 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 <!-- 首页 -->
 <div class="screen on" id="home">
   <button class="lock" id="lockBtn" aria-label="家长设置">🔒</button>
+  <div class="movebar" id="moveBar" style="display:none"><span>📦 一一钱罐搬新家啦（给爸爸妈妈）</span><button id="moveOpen">搬家说明</button></div>
   <div class="hello" id="hello">我的一一钱罐</div>
   <div class="balwrap" id="balwrap">
     <div class="ballabel">我还有</div>
@@ -252,6 +257,19 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 <div class="mask" id="mAsk"><div class="card"><div class="big-emoji" id="aEmoji">🗑️</div><h2 id="aText">要删掉这一笔吗？</h2><div class="heard" id="aSub"></div>
   <div class="row2"><button class="bbtn gray" id="aNo">不删</button><button class="bbtn no" id="aYes">删掉</button></div></div></div>
 
+<!-- 搬家（只在旧地址 github.io 显示） -->
+<div class="mask" id="mMove"><div class="card" style="text-align:left"><h2>📦 搬到新地址</h2>
+  <div class="note" style="color:var(--ink);font-size:20px;line-height:1.6">旧地址以后不能云同步了，请按顺序做一次（只要一两分钟，账不会丢）：<ol style="margin:8px 0 8px 1.2em;padding:0">
+  <li>点下面「① 先打开新地址」，在弹出的提示页点<b>「确定访问」</b>，看到钱罐后回到这里。</li>
+  <li>点「② 搬到新地址」，新地址会自动把这里的账合并进去并上传云端（不会覆盖）。</li>
+  <li>在新地址点 Safari 的<b>分享 → 添加到主屏幕</b>，以后用新图标；确认余额一样后，再删掉旧图标。</li></ol>
+  如果在主屏幕图标里打开新地址时看不到 Safari 按钮，点右上角/右下角的 Safari 图标改用 Safari 打开。<br>新地址：<b id="mvAddr"></b></div>
+  <a class="pbtn alt" id="mvNew" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none">① 先打开新地址</a>
+  <button class="pbtn" id="mvGo">② 搬到新地址</button><button class="pbtn alt" id="mvCopy">复制数据</button>
+  <textarea id="mvText" readonly style="display:none;width:100%;height:90px;margin-top:8px;font-size:14px"></textarea>
+  <div class="note">「复制数据」是备用办法：复制后到新地址的「家长 → 备份」粘贴并点「从文本导入」（会合并，不覆盖），或直接粘到 Safari 地址栏打开。</div>
+  <div class="row2" style="margin-top:12px"><button class="bbtn gray" id="mvClose">关闭</button></div></div></div>
+
 <!-- 家长密码 -->
 <div class="mask" id="mPin"><div class="card"><h2>👨‍👩‍👧 家长密码</h2><div class="pin-dots" id="pinDots"><i></i><i></i><i></i><i></i></div>
   <div class="note" id="pinHint" style="color:var(--soft);font-size:20px;margin-bottom:10px"></div>
@@ -270,7 +288,9 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 <script src="logic.js"></script>
 <script>
 (function(){
-var APPV='v6', KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
+/* ===== 搬家配置：新地址只改这一处（结尾不要带 /） ===== */
+var NEW_ORIGIN='https://yiyi-d3gyvvdig0f40d02f-1514835546.tcloudbaseapp.com';
+var APPV='v7', KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
 var data=load();
 function load(){try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.entries)return PM.prepSync(fix(d),true)}catch(e){}return PM.prepSync(fix({}),false)}
 function fix(d){d.startCents=d.startCents||0;d.entries=d.entries||[];d.pin=d.pin||'0000';d.allowance=d.allowance||{enabled:false,cents:1000,weekday:0,time:'08:00',lastPayoutTs:null};if(d.goal===undefined)d.goal=null;return d}
@@ -434,7 +454,8 @@ $('eDel').onclick=function(){var id=editId;close('mEdit');askDelete(id)};
 $('exp').onclick=function(){var json=JSON.stringify(data,null,1);$('bk').value=json;var name='零花钱备份-'+dayKey(Date.now())+'.json';
   try{var f=new File([json],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:name}).catch(function(){});return}}catch(e){}
   var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast('已导出，也可以复制下面的文本')};
-function doImport(txt){try{var d=JSON.parse(txt);if(!d||!Array.isArray(d.entries))throw 0;askCb=function(){var now=Date.now(),old=data,nd=PM.prepSync(fix(d),true);nd.deleted=Object.assign({},old.deleted||{},nd.deleted||{});
+function doImport(txt){var mv=String(txt||'').trim();if(/import=|^1\.[A-Za-z0-9_-]+$/.test(mv)){var md=PM.decodeMove(mv);if(md){importMerged(md,'导入成功');$('bk').value=''}else toast('搬家数据不完整，请重新复制');return}
+  try{var d=JSON.parse(txt);if(!d||!Array.isArray(d.entries))throw 0;askCb=function(){var now=Date.now(),old=data,nd=PM.prepSync(fix(d),true);nd.deleted=Object.assign({},old.deleted||{},nd.deleted||{});
     var keep={};nd.entries.forEach(function(e){if(nd.deleted[e.id]||(e.key&&nd.deleted[e.key])){e.id='r'+now.toString(36)+Math.random().toString(36).slice(2,6);delete e.key}e.mt=now;keep[e.id]=1});
     old.entries.forEach(function(e){if(!keep[e.id]){nd.deleted[e.id]=now;if(e.key&&!nd.entries.some(function(x){return x.key===e.key}))nd.deleted[e.key]=now}});
     PM.SETTINGS.forEach(function(k){nd.meta[k]=now});data=nd;save();render();renderParent();toast('导入成功 ✓')};$('aEmoji').textContent='📥';$('aText').textContent='用备份覆盖现在的数据？';$('aSub').textContent='备份里有 '+d.entries.length+' 笔账';open('mAsk')}catch(e){toast('备份内容不对哦')}}
@@ -450,7 +471,31 @@ function checkAllowance(){var added=PM.applyAllowance(data,Date.now());if(added.
 document.addEventListener('visibilitychange',function(){if(!document.hidden){checkAllowance();render()}});
 setInterval(checkAllowance,60000);
 
-render();checkAllowance();
+/* ---- 搬家 ---- */
+var MOVE=/(^|\.)github\.io$/.test(location.hostname)||/[?&]mode=move(&|$)/.test(location.search);
+var NEW_OK=!/REPLACE-WITH/.test(NEW_ORIGIN);
+function moveLink(){return NEW_ORIGIN.replace(/\/+$/,'')+'/#import='+PM.encodeMove(data)}
+var pendingImport=null;
+function importMerged(d,how){var n0=data.entries.length;data=fix(PM.importMerge(data,d));save();render();if($('parent').classList.contains('on'))renderParent();if($('ledger').classList.contains('on'))renderLedger();
+  try{localStorage.setItem('pm-imported-at',String(Date.now()))}catch(e){}
+  var add=data.entries.length-n0;toast(how+(add>0?'：搬来 '+add+' 笔账 ✓':'：账本已是最新 ✓'),4000);
+  if(window.__sync)__sync.syncNow(true);else pendingImport=true; return add}
+function checkHashImport(){var h=location.hash||'';if(h.indexOf('import=')<0)return;
+  var d=PM.decodeMove(h);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){location.hash=''}
+  if(!d){toast('搬家链接不完整，请回旧地址点「复制数据」再试',5000);return}
+  checkAllowance();importMerged(d,'从旧地址搬家成功')}
+if(MOVE){document.body.classList.add('moving');$('moveBar').style.display='flex';
+  $('moveOpen').onclick=function(){open('mMove')};$('mvClose').onclick=function(){close('mMove')};
+  $('mvNew').href=NEW_ORIGIN.replace(/\/+$/,'')+'/';$('mvAddr').textContent=NEW_ORIGIN.replace(/^https?:\/\//,'');
+  $('mvGo').onclick=function(){if(!NEW_OK){toast('新地址还没设置好');return}try{localStorage.setItem('pm-moved-at',String(Date.now()))}catch(e){}location.href=moveLink()};
+  $('mvCopy').onclick=function(){var t=moveLink();$('mvText').value=t;$('mvText').style.display='block';
+    var ok=function(){toast('已复制 ✓ 到新地址的「家长 → 备份 → 从文本导入」粘贴，或直接粘到 Safari 地址栏打开',5000)};
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,function(){$('mvText').select();try{document.execCommand('copy');ok()}catch(e){toast('请手动全选复制下面的文字')}});
+    else{$('mvText').select();try{document.execCommand('copy');ok()}catch(e){toast('请手动全选复制下面的文字')}}};
+  if(!NEW_OK){$('mvGo').disabled=true;$('mvCopy').disabled=true}
+}
+render();checkAllowance();checkHashImport();
+window.addEventListener('hashchange',checkHashImport);
 /* ---- 云同步钩子（sync.js 调用） ---- */
 window.__pmSyncHost={
   get:function(){return data},
@@ -467,9 +512,11 @@ if('serviceWorker'in navigator&&location.protocol!=='file:'){
   navigator.serviceWorker.addEventListener('controllerchange',function(){if(hadCtl&&!reloaded){reloaded=true;location.reload()}});
   navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(reg){reg.update().catch(function(){});
     document.addEventListener('visibilitychange',function(){if(!document.hidden)reg.update().catch(function(){})})}).catch(function(){});}
-window.__pm={data:function(){return data},show:show,showConfirm:showConfirm,openPin:openPin,toast:toast,render:render,version:APPV,unlocked:unlocked,lock:function(){unlockedAt=0}};
+if(!MOVE){var ss=document.createElement('script');ss.src='sync.js?v=7';ss.onload=function(){if(pendingImport&&window.__sync){pendingImport=null;__sync.syncNow(true)}};document.body.appendChild(ss)}
+else{$('syText').textContent='旧地址不能云同步，请搬到新地址';$('syDot').className='dot s-off'}
+window.__pm={moveLink:moveLink,isMove:MOVE,data:function(){return data},show:show,showConfirm:showConfirm,openPin:openPin,toast:toast,render:render,version:APPV,unlocked:unlocked,lock:function(){unlockedAt=0}};
 })();
 </script>
-<script src="sync.js?v=6" defer></script>
+
 </body>
 </html>

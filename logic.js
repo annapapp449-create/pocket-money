@@ -250,6 +250,28 @@
     return d;
   }
 
-  var api = { stable: stable, syncPart: syncPart, sameSync: sameSync, mergeData: mergeData, prepSync: prepSync, SETTINGS: SETTINGS, goalProgress: goalProgress, isUnlocked: isUnlocked, UNLOCK_MS: UNLOCK_MS, parseSpeech: parseSpeech, toNum: toNum, findAmounts: findAmounts, normalize: normalize, guessEmoji: guessEmoji, duePayouts: duePayouts, applyAllowance: applyAllowance, payoutKey: payoutKey };
+
+  // ---- 搬家：把整本账编码进链接 #import=1.<base64url(UTF-8 JSON)> ----
+  function b64e(str) { var u = unescape(encodeURIComponent(str)); return btoa(u).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function b64d(b) { b = String(b).replace(/-/g, '+').replace(/_/g, '/'); while (b.length % 4) b += '='; return decodeURIComponent(escape(atob(b))); }
+  function encodeMove(d) { var p = syncPart(d); p.from = 'move'; return '1.' + b64e(JSON.stringify(p)); }
+  // 接受：完整链接、#import=…、1.xxx 编码、或备份 JSON 文本；不对就返回 null
+  function decodeMove(txt) {
+    if (txt == null) return null; txt = String(txt).trim();
+    var m = txt.match(/[#&?]import=([^&#\s]+)/); if (m) txt = decodeURIComponent(m[1]);
+    var d = null;
+    try { if (/^1\.[A-Za-z0-9_-]+$/.test(txt)) d = JSON.parse(b64d(txt.slice(2))); else if (txt.charAt(0) === '{') d = JSON.parse(txt); } catch (e) { return null; }
+    if (!d || typeof d !== 'object' || !Array.isArray(d.entries)) return null;
+    if (d.entries.some(function (e) { return !e || typeof e.id !== 'string' || !(e.cents > 0) || (e.type !== 'in' && e.type !== 'out'); })) return null;
+    return d;
+  }
+  // 合并（不是覆盖）：旧数据里没有的字段按“旧数据”补齐，再走正常同步合并
+  function importMerge(local, imported) {
+    var d = clone(imported); delete d.from; delete d.v;
+    d = prepSync(d, true);
+    return mergeData(local, d);
+  }
+
+  var api = { encodeMove: encodeMove, decodeMove: decodeMove, importMerge: importMerge, stable: stable, syncPart: syncPart, sameSync: sameSync, mergeData: mergeData, prepSync: prepSync, SETTINGS: SETTINGS, goalProgress: goalProgress, isUnlocked: isUnlocked, UNLOCK_MS: UNLOCK_MS, parseSpeech: parseSpeech, toNum: toNum, findAmounts: findAmounts, normalize: normalize, guessEmoji: guessEmoji, duePayouts: duePayouts, applyAllowance: applyAllowance, payoutKey: payoutKey };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PM = api;
 })(this);

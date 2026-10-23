@@ -5,7 +5,7 @@
  * 任何网络/云端错误都只影响同步状态显示，不会挡住孩子用 App。 */
 (function () {
   var ENV = 'yiyi-d3gyvvdig0f40d02f', REGION = 'ap-shanghai', COLL = 'ledger';
-  var SDK = 'vendor/cloudbase.js?v=6', APPV = 'v6';
+  var SDK = 'vendor/cloudbase.js?v=7', APPV = 'v7';
   // family 只用于测试时隔离数据（?family=test-xxx），正常使用固定为 yiyi
   var FAMILY = 'yiyi';
   try { var fq = new URLSearchParams(location.search).get('family'); if (fq && /^[a-z0-9-]{3,40}$/.test(fq)) FAMILY = fq; } catch (e) {}
