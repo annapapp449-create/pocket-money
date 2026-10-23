@@ -157,7 +157,9 @@
     due.forEach(function (ts) {
       var key = payoutKey(ts);
       if (data.entries.some(function (e) { return e.key === key; })) return;
-      var e = { id: key + '-' + Math.random().toString(36).slice(2, 7), key: key, ts: ts, type: 'in', item: '每周零花钱', cents: cfg.cents, emoji: '💰', auto: true };
+      if (data.deleted && data.deleted[key]) return; // 家长删过这一周的零花钱：不再补发
+      // id 固定为发放日 key：两台设备同时补发也只会得到同一个 id，同步合并后不会重复
+      var e = { id: key, key: key, ts: ts, mt: nowTs, type: 'in', item: '每周零花钱', cents: cfg.cents, emoji: '💰', auto: true };
       data.entries.push(e); added.push(e);
     });
     if (due.length) cfg.lastPayoutTs = due[due.length - 1];
@@ -183,6 +185,71 @@
     return age >= 0 && age < w;
   }
 
-  var api = { goalProgress: goalProgress, isUnlocked: isUnlocked, UNLOCK_MS: UNLOCK_MS, parseSpeech: parseSpeech, toNum: toNum, findAmounts: findAmounts, normalize: normalize, guessEmoji: guessEmoji, duePayouts: duePayouts, applyAllowance: applyAllowance, payoutKey: payoutKey };
+  /* ---------- 云同步：合并逻辑（纯函数，可测试） ---------- */
+  var SETTINGS = ['startCents', 'pin', 'allowance', 'goal'];
+  function stable(v) { // 稳定 JSON（键排序），用于比较
+    if (v === null || typeof v !== 'object') return JSON.stringify(v === undefined ? null : v);
+    if (Array.isArray(v)) return '[' + v.map(stable).join(',') + ']';
+    return '{' + Object.keys(v).sort().filter(function (k) { return v[k] !== undefined; }).map(function (k) { return JSON.stringify(k) + ':' + stable(v[k]); }).join(',') + '}';
+  }
+  function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
+  function emt(e) { return e.mt || e.ts || 0; }
+  // 只取需要同步的部分
+  function syncPart(d) {
+    var out = { v: 1, entries: (d.entries || []).slice().sort(function (a, b) { return a.id < b.id ? -1 : a.id > b.id ? 1 : 0; }), deleted: d.deleted || {}, meta: d.meta || {} };
+    SETTINGS.forEach(function (k) { out[k] = d[k] === undefined ? null : d[k]; });
+    return clone(out);
+  }
+  function sameSync(a, b) { return stable(syncPart(a)) === stable(syncPart(b)); }
+  function pickNewer(a, b) { // 条目冲突：改得晚的赢；一样晚就按内容排序，保证两边结果一致
+    var ta = emt(a), tb = emt(b);
+    if (ta !== tb) return ta > tb ? a : b;
+    return stable(a) >= stable(b) ? a : b;
+  }
+  // local, remote: 完整 data（remote 可为 syncPart）；返回新的合并结果，不修改入参
+  function mergeData(local, remote) {
+    var out = clone(local);
+    if (!remote) return out;
+    remote = clone(remote);
+    out.meta = out.meta || {}; out.deleted = out.deleted || {};
+    var rmeta = remote.meta || {}, rdel = remote.deleted || {};
+    // 1) 删除记录：并集，取较晚时间
+    Object.keys(rdel).forEach(function (k) { out.deleted[k] = Math.max(out.deleted[k] || 0, rdel[k] || 0); });
+    // 2) 账目：按 id 并集，冲突取较新
+    var map = {};
+    (out.entries || []).forEach(function (e) { map[e.id] = e; });
+    (remote.entries || []).forEach(function (e) { map[e.id] = map[e.id] ? pickNewer(map[e.id], e) : e; });
+    // 3) 删除优先：id 或发放日 key 被删的都去掉（删除不会被另一台设备“复活”）
+    var list = Object.keys(map).map(function (k) { return map[k]; }).filter(function (e) { return !out.deleted[e.id] && !(e.key && out.deleted[e.key]); });
+    // 4) 每周零花钱按发放日去重：同一 key 只留 id 最小的一笔，其余记为删除
+    var byKey = {};
+    list.forEach(function (e) { if (!e.key) return; if (!byKey[e.key] || e.id < byKey[e.key].id) byKey[e.key] = e; });
+    var now = Date.now();
+    out.entries = list.filter(function (e) {
+      if (e.key && byKey[e.key] !== e) { out.deleted[e.id] = Math.max(out.deleted[e.id] || 0, emt(e) || now); return false; }
+      return true;
+    }).sort(function (a, b) { return a.ts - b.ts; });
+    // 5) 设置：各自按 updatedAt 后写赢
+    SETTINGS.forEach(function (k) {
+      var lt = out.meta[k] || 0, rt = rmeta[k] || 0;
+      var useRemote = rt > lt || (rt === lt && stable(remote[k]) > stable(out[k]) && remote[k] !== undefined);
+      if (useRemote) out[k] = remote[k] === undefined ? null : remote[k];
+      out.meta[k] = Math.max(lt, rt);
+    });
+    // 6) 零花钱“上次发放时间”取两边较晚的，避免一台设备回退后重复补发
+    var la = local.allowance, ra = remote.allowance;
+    if (out.allowance && la && ra && la.lastPayoutTs != null && ra.lastPayoutTs != null)
+      out.allowance.lastPayoutTs = Math.max(la.lastPayoutTs, ra.lastPayoutTs);
+    return out;
+  }
+  // 给旧数据补上同步需要的字段（不改变已有字段）
+  function prepSync(d, existed) {
+    d.meta = d.meta || {}; d.deleted = d.deleted || {};
+    SETTINGS.forEach(function (k) { if (d.meta[k] == null) d.meta[k] = existed ? 1 : 0; });
+    (d.entries || []).forEach(function (e) { if (e.mt == null) e.mt = e.ts || 1; });
+    return d;
+  }
+
+  var api = { stable: stable, syncPart: syncPart, sameSync: sameSync, mergeData: mergeData, prepSync: prepSync, SETTINGS: SETTINGS, goalProgress: goalProgress, isUnlocked: isUnlocked, UNLOCK_MS: UNLOCK_MS, parseSpeech: parseSpeech, toNum: toNum, findAmounts: findAmounts, normalize: normalize, guessEmoji: guessEmoji, duePayouts: duePayouts, applyAllowance: applyAllowance, payoutKey: payoutKey };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PM = api;
 })(this);

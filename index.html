@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-title" content="一一钱罐">
 <meta name="theme-color" content="#FFE8EC">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=4">
-<link rel="icon" href="icons/icon-192.png?v=4">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=5">
+<link rel="icon" href="icons/icon-192.png?v=5">
 <style>
 :root{--bg:#FFF6EE;--pink:#FF8FA8;--pink2:#FFC2D1;--pinkd:#E8607F;--mint:#5CC9A7;--mintl:#D9F5EA;--coral:#FF7B6B;--ink:#5A3E46;--soft:#A98990;--card:#fff;--sun:#FFD36E}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
@@ -135,6 +135,10 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 #mEdit select,#mEdit input{font-size:24px;padding:10px 14px;border-radius:16px;border:2px solid #F1DCD3;background:#FFFBF8;color:var(--ink);margin-left:8px}
 #mEdit p{margin:12px 0}
 .edel{width:100%;margin-top:18px;font-size:24px;font-weight:800;padding:14px;border-radius:22px;background:#FFF1EE;color:var(--coral)}
+.sync-row{display:flex;align-items:center;gap:12px;font-size:24px;flex-wrap:wrap}
+.sync-row .pbtn{margin-left:auto}
+.dot{width:16px;height:16px;border-radius:50%;background:#D8CCC6;display:inline-block;flex:none}
+.dot.s-ok{background:var(--mint)}.dot.s-busy{background:var(--sun);animation:pulse 1s infinite}.dot.s-off{background:#C9B8BD}.dot.s-err{background:var(--coral)}
 .ver{text-align:center;font-size:16px;color:#CDB9BE;margin:6px 0 20px}
 .confetti{position:fixed;top:-40px;font-size:40px;z-index:60;pointer-events:none;animation:fall linear forwards}
 @keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
@@ -173,6 +177,11 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 <div class="screen" id="parent">
   <div class="topbar"><button class="back" data-go="home">‹ 退出</button><h1>👨‍👩‍👧 家长设置</h1><div style="width:120px"></div></div>
   <div class="scroll">
+    <section class="syncbox"><h3>☁️ 云同步</h3>
+      <div class="sync-row"><span class="dot" id="syDot"></span><b id="syText">未连接</b><button class="pbtn alt" id="syNow">立即同步</button></div>
+      <div class="note" id="syDetail"></div>
+      <div class="note" id="syEnv"></div>
+    </section>
     <section><h3>💰 余额</h3>
       <div class="note">现在余额：<b id="pBal"></b>（起始金额 <span id="pStart"></span>）</div>
       <label>把余额设为 ¥<input type="number" id="setBal" step="0.1" inputmode="decimal"><button class="pbtn" id="doSetBal">设定</button></label>
@@ -200,7 +209,7 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
       <button class="pbtn" id="exp">导出备份</button><button class="pbtn alt" id="impFileBtn">从文件导入</button><input type="file" id="impFile" accept=".json,application/json" style="display:none">
       <textarea id="bk" placeholder="导出的数据会显示在这里；也可以把备份内容粘贴进来再点“从文本导入”"></textarea>
       <button class="pbtn alt" id="impText">从文本导入</button>
-      <div class="note">数据只保存在这台 iPad 的浏览器里。删除 App 或清除 Safari 数据会丢失，建议定期导出。</div>
+      <div class="note">开启云同步后，账本会自动保存到云端；这里的备份是额外的保险，建议偶尔导出一次。</div>
     </section>
     <section><h3>🔒 修改家长密码</h3>
       <label>新密码（4 位数字）<input id="newPin" inputmode="numeric" maxlength="4" style="width:120px"><button class="pbtn" id="doPin">保存</button></label>
@@ -261,11 +270,13 @@ button{font:inherit;border:0;cursor:pointer;color:inherit}
 <script src="logic.js"></script>
 <script>
 (function(){
-var APPV='v4', KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
+var APPV='v5', KEY='pm-data-v1', $=function(id){return document.getElementById(id)};
 var data=load();
-function load(){try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.entries)return fix(d)}catch(e){}return fix({})}
+function load(){try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.entries)return PM.prepSync(fix(d),true)}catch(e){}return PM.prepSync(fix({}),false)}
 function fix(d){d.startCents=d.startCents||0;d.entries=d.entries||[];d.pin=d.pin||'0000';d.allowance=d.allowance||{enabled:false,cents:1000,weekday:0,time:'08:00',lastPayoutTs:null};if(d.goal===undefined)d.goal=null;return d}
-function save(){localStorage.setItem(KEY,JSON.stringify(data))}
+function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+function save(){saveLocal();if(window.__sync)__sync.changed()}
+function touch(k){data.meta=data.meta||{};data.meta[k]=Date.now()}
 function totals(){var i=0,o=0;data.entries.forEach(function(e){e.type==='in'?i+=e.cents:o+=e.cents});return{inc:i,out:o,bal:data.startCents+i-o}}
 function fmt(c){var n=Math.abs(c)/100,s=(c%100===0)?String(n):(c%10===0?n.toFixed(1):n.toFixed(2));return(c<0?'-':'')+s}
 var WD=['周日','周一','周二','周三','周四','周五','周六'];
@@ -295,7 +306,7 @@ var toastT;function toast(msg,ms){var t=$('toast');t.textContent=msg;t.classList
 function confetti(set){for(var i=0;i<24;i++){var s=document.createElement('div');s.className='confetti';s.textContent=set[i%set.length];s.style.left=Math.random()*100+'vw';s.style.animationDuration=(1.8+Math.random()*1.6)+'s';s.style.animationDelay=Math.random()*.5+'s';document.body.appendChild(s);setTimeout(function(x){x.remove()}.bind(null,s),4200)}}
 function say(txt){try{var u=new SpeechSynthesisUtterance(txt);u.lang='zh-CN';u.rate=1;speechSynthesis.speak(u)}catch(e){}}
 
-function addEntry(e){e.id=e.id||Date.now().toString(36)+Math.random().toString(36).slice(2,6);e.ts=e.ts||Date.now();data.entries.push(e);save();render()}
+function addEntry(e){e.id=e.id||Date.now().toString(36)+Math.random().toString(36).slice(2,6);e.ts=e.ts||Date.now();e.mt=Date.now();data.entries.push(e);save();render()}
 
 /* ---- 语音 ---- */
 var SR=window.SpeechRecognition||window.webkitSpeechRecognition, rec=null, finals='', interim='', holding=false, gotEnd=true;
@@ -372,7 +383,7 @@ function bindRows(){$('list').querySelectorAll('.ent').forEach(function(row){var
   row.querySelector('.del').onclick=function(){askDelete(row.dataset.id)}})}
 var askCb=null;
 function askDelete(id){var e=data.entries.find(function(x){return x.id===id});if(!e)return;$('aEmoji').textContent=e.emoji||'🗑️';$('aText').textContent='要删掉这一笔吗？';$('aSub').textContent=e.item+'  '+(e.type==='in'?'+':'-')+'¥'+fmt(e.cents);
-  askCb=function(){data.entries=data.entries.filter(function(x){return x.id!==id});save();render();renderLedger();if($('parent').classList.contains('on'))renderParent();toast('删掉啦')};open('mAsk')}
+  askCb=function(){var now=Date.now();data.deleted=data.deleted||{};data.deleted[id]=now;if(e.key)data.deleted[e.key]=now;data.entries=data.entries.filter(function(x){return x.id!==id});save();render();renderLedger();if($('parent').classList.contains('on'))renderParent();toast('删掉啦')};open('mAsk')}
 $('aNo').onclick=function(){close('mAsk');askCb=null;renderLedger()};$('aYes').onclick=function(){close('mAsk');askCb&&askCb();askCb=null};
 
 /* ---- 家长入口：长按余额 2 秒 ---- */
@@ -403,31 +414,34 @@ function renderParent(){var t=totals();$('pBal').textContent='¥'+fmt(t.bal);$('
   $('plist').innerHTML=es.length?es.map(function(e){return'<div class="pr" data-id="'+e.id+'"><span>'+(e.emoji||'')+'</span><span class="t">'+dayKey(e.ts)+' '+hm(e.ts)+' · '+esc(e.item)+(e.auto?'（自动）':'')+'</span><b class="am '+e.type+'">'+(e.type==='in'?'+':'-')+fmt(e.cents)+'</b><button data-a="e">改</button><button data-a="d">删</button></div>'}).join(''):'<div class="note">还没有账目</div>';
   $('plist').querySelectorAll('.pr').forEach(function(r){r.querySelector('[data-a=e]').onclick=function(){openEdit(r.dataset.id)};r.querySelector('[data-a=d]').onclick=function(){askDelete(r.dataset.id)}})}
 function nextPay(){var a=data.allowance,now=new Date(),d=new Date(now.getFullYear(),now.getMonth(),now.getDate());for(var i=0;i<8;i++){var p=a.time.split(':'),o=new Date(d.getFullYear(),d.getMonth(),d.getDate()+i,+p[0],+p[1]);if(o.getDay()===+a.weekday&&o>now)return md(o)+' '+WD[o.getDay()]+' '+a.time}return''}
-$('doSetBal').onclick=function(){var c=cents($('setBal').value);if(isNaN(c))return;var t=totals();data.startCents+=c-t.bal;save();render();renderParent();$('setBal').value='';toast('余额已设为 ¥'+fmt(c))};
+$('doSetBal').onclick=function(){var c=cents($('setBal').value);if(isNaN(c))return;var t=totals();data.startCents+=c-t.bal;touch('startCents');save();render();renderParent();$('setBal').value='';toast('余额已设为 ¥'+fmt(c))};
 $('doGive').onclick=function(){var c=cents($('giveAmt').value);if(!(c>0))return;addEntry({type:'in',item:$('giveNote').value||'零花钱',cents:c,emoji:'💰'});$('giveAmt').value='';renderParent();toast('已发 ¥'+fmt(c)+' 🎉')};
 $('gSave').onclick=function(){var it=$('gItem').value.trim(),c=cents($('gAmt').value),em=$('gEmoji').value.trim();if(!it){toast('请填写想买的东西');return}if(!(c>0)){toast('请填写价格');return}
-  if(!em){em=PM.guessEmoji(it);if(em==='🛍️')em='🎁'}data.goal={item:it.slice(0,10),cents:c,emoji:em,setTs:Date.now()};var gp=PM.goalProgress(totals().bal,data.goal);data.goal.cel=gp.reached;save();render();renderParent();toast('目标已设好 🎯')};
-$('gClear').onclick=function(){if(!data.goal){toast('还没有目标');return}data.goal=null;save();render();renderParent();toast('目标已清除')};
+  if(!em){em=PM.guessEmoji(it);if(em==='🛍️')em='🎁'}data.goal={item:it.slice(0,10),cents:c,emoji:em,setTs:Date.now()};var gp=PM.goalProgress(totals().bal,data.goal);data.goal.cel=gp.reached;touch('goal');save();render();renderParent();toast('目标已设好 🎯')};
+$('gClear').onclick=function(){if(!data.goal){toast('还没有目标');return}data.goal=null;touch('goal');save();render();renderParent();toast('目标已清除')};
 $('alOn').onclick=function(){$('alOn').classList.toggle('on')};
 $('alSave').onclick=function(){var a=data.allowance,on=$('alOn').classList.contains('on'),wd=+$('alDay').value,tm=$('alTime').value||'08:00',c=cents($('alAmt').value);
   if(on&&!(c>0)){toast('请填写金额');return}
   var schedChanged=!a.enabled&&on||a.weekday!==wd||a.time!==tm;
   a.enabled=on;a.weekday=wd;a.time=tm;if(c>0)a.cents=c;
   if(on&&(schedChanged||a.lastPayoutTs==null))a.lastPayoutTs=Math.max(a.lastPayoutTs||0,Date.now()); // 从现在开始计，不补发开启前的
-  save();renderParent();toast(on?'每周零花钱已开启 ✓':'每周零花钱已关闭')};
+  touch('allowance');save();renderParent();toast(on?'每周零花钱已开启 ✓':'每周零花钱已关闭')};
 var editId=null;
 function openEdit(id){var e=data.entries.find(function(x){return x.id===id});if(!e)return;editId=id;$('eType').value=e.type;$('eItem').value=e.item;$('eAmt').value=e.cents/100;var d=new Date(e.ts);$('eDate').value=dayKey(e.ts)+'T'+hm(e.ts);open('mEdit')}
 $('eNo').onclick=function(){close('mEdit')};
-$('eOk').onclick=function(){var e=data.entries.find(function(x){return x.id===editId});var c=cents($('eAmt').value);if(!e||!(c>0))return;e.type=$('eType').value;e.item=$('eItem').value||e.item;e.cents=c;e.emoji=PM.guessEmoji(e.item)==='🛍️'?(e.emoji||'🛍️'):PM.guessEmoji(e.item);var ts=new Date($('eDate').value).getTime();if(!isNaN(ts))e.ts=ts;save();close('mEdit');render();if($('parent').classList.contains('on'))renderParent();if($('ledger').classList.contains('on'))renderLedger();toast('已保存')};
+$('eOk').onclick=function(){var e=data.entries.find(function(x){return x.id===editId});var c=cents($('eAmt').value);if(!e||!(c>0))return;e.type=$('eType').value;e.item=$('eItem').value||e.item;e.cents=c;e.emoji=PM.guessEmoji(e.item)==='🛍️'?(e.emoji||'🛍️'):PM.guessEmoji(e.item);var ts=new Date($('eDate').value).getTime();if(!isNaN(ts))e.ts=ts;e.mt=Date.now();save();close('mEdit');render();if($('parent').classList.contains('on'))renderParent();if($('ledger').classList.contains('on'))renderLedger();toast('已保存')};
 $('eDel').onclick=function(){var id=editId;close('mEdit');askDelete(id)};
 $('exp').onclick=function(){var json=JSON.stringify(data,null,1);$('bk').value=json;var name='零花钱备份-'+dayKey(Date.now())+'.json';
   try{var f=new File([json],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:name}).catch(function(){});return}}catch(e){}
   var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast('已导出，也可以复制下面的文本')};
-function doImport(txt){try{var d=JSON.parse(txt);if(!d||!Array.isArray(d.entries))throw 0;askCb=function(){data=fix(d);save();render();renderParent();toast('导入成功 ✓')};$('aEmoji').textContent='📥';$('aText').textContent='用备份覆盖现在的数据？';$('aSub').textContent='备份里有 '+d.entries.length+' 笔账';open('mAsk')}catch(e){toast('备份内容不对哦')}}
+function doImport(txt){try{var d=JSON.parse(txt);if(!d||!Array.isArray(d.entries))throw 0;askCb=function(){var now=Date.now(),old=data,nd=PM.prepSync(fix(d),true);nd.deleted=Object.assign({},old.deleted||{},nd.deleted||{});
+    var keep={};nd.entries.forEach(function(e){if(nd.deleted[e.id]||(e.key&&nd.deleted[e.key])){e.id='r'+now.toString(36)+Math.random().toString(36).slice(2,6);delete e.key}e.mt=now;keep[e.id]=1});
+    old.entries.forEach(function(e){if(!keep[e.id]){nd.deleted[e.id]=now;if(e.key&&!nd.entries.some(function(x){return x.key===e.key}))nd.deleted[e.key]=now}});
+    PM.SETTINGS.forEach(function(k){nd.meta[k]=now});data=nd;save();render();renderParent();toast('导入成功 ✓')};$('aEmoji').textContent='📥';$('aText').textContent='用备份覆盖现在的数据？';$('aSub').textContent='备份里有 '+d.entries.length+' 笔账';open('mAsk')}catch(e){toast('备份内容不对哦')}}
 $('impFileBtn').onclick=function(){$('impFile').click()};
 $('impFile').onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){doImport(r.result)};r.readAsText(f);this.value=''};
 $('impText').onclick=function(){doImport($('bk').value)};
-$('doPin').onclick=function(){var p=$('newPin').value;if(!/^\d{4}$/.test(p)){toast('请输入 4 位数字');return}data.pin=p;save();$('newPin').value='';toast('密码已修改')};
+$('doPin').onclick=function(){var p=$('newPin').value;if(!/^\d{4}$/.test(p)){toast('请输入 4 位数字');return}data.pin=p;touch('pin');save();$('newPin').value='';toast('密码已修改')};
 
 /* ---- 每周零花钱补发 ---- */
 function checkAllowance(){var added=PM.applyAllowance(data,Date.now());if(added.length){save();render();if($('ledger').classList.contains('on'))renderLedger();
@@ -437,6 +451,17 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden){che
 setInterval(checkAllowance,60000);
 
 render();checkAllowance();
+/* ---- 云同步钩子（sync.js 调用） ---- */
+window.__pmSyncHost={
+  get:function(){return data},
+  merge:function(remote){var before=PM.stable(PM.syncPart(data));data=PM.mergeData(data,remote);saveLocal();var changed=PM.stable(PM.syncPart(data))!==before;
+    if(changed){render();if($('ledger').classList.contains('on'))renderLedger();var ae=document.activeElement;if($('parent').classList.contains('on')&&!(ae&&/INPUT|SELECT|TEXTAREA/.test(ae.tagName)))renderParent();checkAllowance()}return changed},
+  status:function(st){var m={ok:['ok','已同步'],busy:['busy','同步中…'],off:['off','离线，稍后自动同步'],err:['err','同步出错'],idle:['off','未连接']}[st.state]||['off',st.state];
+    $('syDot').className='dot s-'+m[0];$('syText').textContent=m[1];
+    $('syDetail').textContent=(st.reason?st.reason:'')+(st.last?((st.reason?' · ':'')+'上次成功：'+dayKey(st.last)+' '+hm(st.last)):'');
+    $('syEnv').textContent=st.env?('云开发环境：'+st.env+(st.connected?'（已连接'+(st.live?'，实时更新中':'')+'）':'（未连接）')):''}
+};
+$('syNow').onclick=function(){if(window.__sync)__sync.syncNow(true)};
 if('serviceWorker'in navigator&&location.protocol!=='file:'){
   var hadCtl=!!navigator.serviceWorker.controller,reloaded=false;
   navigator.serviceWorker.addEventListener('controllerchange',function(){if(hadCtl&&!reloaded){reloaded=true;location.reload()}});
@@ -445,5 +470,6 @@ if('serviceWorker'in navigator&&location.protocol!=='file:'){
 window.__pm={data:function(){return data},show:show,showConfirm:showConfirm,openPin:openPin,toast:toast,render:render,version:APPV,unlocked:unlocked,lock:function(){unlockedAt=0}};
 })();
 </script>
+<script src="sync.js?v=5" defer></script>
 </body>
 </html>
